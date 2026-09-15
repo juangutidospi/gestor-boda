@@ -88,7 +88,8 @@ export class FincaView extends AppElement {
     const elegida = this._fincas.find((f) => f.estado === 'elegida');
     if (!elegida) return '';
     const costeVal = coste(elegida, this._invitados);
-    const senal = Number(elegida.senal) || Math.round(costeVal * 0.25);
+    const senalNum = Number(elegida.senal);
+    const senalTxt = senalNum > 0 ? eur(senalNum) : '—';
     return `
       <div class="fc-banner">
         <div>
@@ -96,7 +97,7 @@ export class FincaView extends AppElement {
           <span class="fc-banner-nombre">${escapeHtml(elegida.nombre)}</span>
         </div>
         <div class="fc-banner-stats">
-          <div><span class="fc-banner-lbl">${escapeHtml(t('finca.elegida.senal'))}</span><span class="fc-banner-val">${escapeHtml(eur(senal))}</span></div>
+          <div><span class="fc-banner-lbl">${escapeHtml(t('finca.elegida.senal'))}</span><span class="fc-banner-val">${escapeHtml(senalTxt)}</span></div>
           <div><span class="fc-banner-lbl">${escapeHtml(t('finca.elegida.coste'))}</span><span class="fc-banner-val">${escapeHtml(eur(costeVal))}</span></div>
         </div>
         <button class="btn" id="clear-elegida" type="button">${escapeHtml(t('finca.elegida.volver'))}</button>

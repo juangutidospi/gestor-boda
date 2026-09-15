@@ -13,6 +13,23 @@ export class ModalDialog extends AppElement {
   #open = false;
   #heading = '';
 
+  /**
+   * Cierra el diálogo con Escape, solo cuando está abierto.
+   * @param {KeyboardEvent} e
+   */
+  #onKey = (e) => {
+    if (this.#open && e.key === 'Escape') this.close();
+  };
+
+  /**
+   * Registra el listener de teclado del diálogo UNA sola vez (no en cada
+   * repintado, que apilaría listeners duplicados en window).
+   */
+  connectedCallback() {
+    super.connectedCallback();
+    this.on(window, 'keydown', this.#onKey);
+  }
+
   /** @param {string} v */
   set heading(v) { this.#heading = v; this._paint(); }
   get heading() { return this.#heading; }
@@ -41,7 +58,6 @@ export class ModalDialog extends AppElement {
     const backdrop = this.$('.backdrop');
     this.on(this.$('#x'), 'click', () => this.close());
     this.on(backdrop, 'click', (e) => { if (e.target === backdrop) this.close(); });
-    this.on(window, 'keydown', (e) => { if (this.#open && e.key === 'Escape') this.close(); });
   }
 }
 

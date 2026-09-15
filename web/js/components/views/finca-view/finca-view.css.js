@@ -10,6 +10,10 @@ import { css } from '../../../core/css.js';
 export const styles = css`
 :host { display: block; }
 
+/* Compensa el nav superior fijo (sticky en el light DOM) para que el título
+   de la vista no quede tapado. */
+.page-head { padding-top: var(--space-6); }
+
 /* ---------- Banner de finca elegida ---------- */
 .fc-banner {
   display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-end;
