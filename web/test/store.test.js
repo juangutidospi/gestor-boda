@@ -1,5 +1,5 @@
 import { register } from './runner.js';
-import { getGroup, get, set, toggle, reset } from '../js/core/store.js';
+import { getGroup, get, set, setGroup, toggle, reset } from '../js/core/store.js';
 
 register('core/store', () => {
   const out = [];
@@ -20,6 +20,9 @@ register('core/store', () => {
   out.push({ name: 'set emite store:changed', ok: fired, detail: '' });
 
   out.push({ name: 'get con fallback', ok: get('fincas', 'noexiste', 'def') === 'def', detail: '' });
+
+  setGroup('ui', { a: 1 });
+  out.push({ name: 'setGroup reemplaza el grupo', ok: getGroup('ui').a === 1, detail: '' });
 
   reset();
   out.push({ name: 'reset vacía el grupo', ok: Object.keys(getGroup('fincas')).length === 0, detail: '' });

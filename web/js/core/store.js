@@ -67,6 +67,17 @@ export function toggle(group, id, initial = false) {
   return next;
 }
 
+/**
+ * Reemplaza un grupo entero (usado por los repos para siembra y borrado).
+ * @param {keyof EMPTY} group
+ * @param {object} map
+ */
+export function setGroup(group, map) {
+  state[group] = { ...map };
+  save();
+  window.dispatchEvent(new CustomEvent('store:changed', { detail: { group, id: '*', value: null } }));
+}
+
 /** Borra todo el estado. */
 export function reset() {
   state = structuredClone(EMPTY);
