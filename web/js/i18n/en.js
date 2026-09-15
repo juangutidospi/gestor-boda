@@ -132,4 +132,10 @@ export default {
   'finca.toast.elegida': '{nombre} is the chosen venue',
   'finca.toast.candidata': '{nombre} back to shortlist',
   'finca.toast.creada': '{nombre} added as shortlisted',
+  'finca.unit.sent': 'seated',
+  'finca.unit.depie': 'standing',
+  'finca.unit.porInv': '€/guest',
+  'finca.card.precioAlq': '{alquiler} rental + {menu} €/guest',
+  'finca.card.precioInv': '{menu} € per guest',
+  'finca.compare.crit': 'Criterion',
 };

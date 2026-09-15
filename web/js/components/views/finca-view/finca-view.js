@@ -196,8 +196,8 @@ export class FincaView extends AppElement {
     const fotos = f.fotos || [];
     const cover = fotos.length ? storage.url(fotos[0].url) : '';
     const precioLabel = f.alquiler
-      ? `${eur(f.alquiler)} alquiler + ${f.menu} €/inv.`
-      : `${f.menu} € por invitado`;
+      ? t('finca.card.precioAlq', { alquiler: eur(f.alquiler), menu: f.menu })
+      : t('finca.card.precioInv', { menu: f.menu });
     return `
       <article class="fc-card" data-id="${escapeHtml(f.id)}">
         <div class="fc-card-top">
@@ -211,7 +211,7 @@ export class FincaView extends AppElement {
         </div>
         <div class="fc-card-panel">
           <div><span class="fc-lbl">${escapeHtml(t('finca.card.coste'))}</span><span class="fc-val">${escapeHtml(eurK(coste(f, this._invitados)))}</span><span class="fc-sub">${escapeHtml(precioLabel)}</span></div>
-          <div class="fc-sep"><span class="fc-lbl">${escapeHtml(t('finca.card.aforoVal'))}</span><span class="fc-val">${escapeHtml(`${f.capSent} sent.`)}</span><span class="fc-sub">${escapeHtml(`${String(f.valoracion).replace('.', ',')} / 5 · ${f.capPie || 0} de pie`)}</span></div>
+          <div class="fc-sep"><span class="fc-lbl">${escapeHtml(t('finca.card.aforoVal'))}</span><span class="fc-val">${escapeHtml(`${f.capSent} ${t('finca.unit.sent')}`)}</span><span class="fc-sub">${escapeHtml(`${String(f.valoracion).replace('.', ',')} / 5 · ${f.capPie || 0} ${t('finca.unit.depie')}`)}</span></div>
         </div>
         <div class="fc-card-servicios">${(f.servicios || []).map((s) => `<span class="tag tag-neutral">${escapeHtml(s)}</span>`).join('')}</div>
         <div class="fc-card-foot">
@@ -254,13 +254,15 @@ export class FincaView extends AppElement {
    */
   _rowTpl(f) {
     const comparando = this._compare.includes(f.id);
-    const precioLabel = f.alquiler ? `${eur(f.alquiler)} + ${f.menu} €/inv.` : `${f.menu} €/inv.`;
+    const precioLabel = f.alquiler
+      ? `${eur(f.alquiler)} + ${f.menu} ${t('finca.unit.porInv')}`
+      : `${f.menu} ${t('finca.unit.porInv')}`;
     return `
       <tr data-id="${escapeHtml(f.id)}">
         <td><input type="checkbox" data-cmp="${escapeHtml(f.id)}"${comparando ? ' checked' : ''}></td>
         <td><div class="fc-table-nombre">${escapeHtml(f.nombre)}</div><div class="fc-table-tipo">${escapeHtml(f.tipo)}</div></td>
         <td>${escapeHtml(`${f.zona} · ${f.km} km`)}</td>
-        <td>${escapeHtml(`${f.capSent} sent.`)}</td>
+        <td>${escapeHtml(`${f.capSent} ${t('finca.unit.sent')}`)}</td>
         <td class="fc-table-precio">${escapeHtml(precioLabel)}</td>
         <td class="fc-table-coste">${escapeHtml(eurK(coste(f, this._invitados)))}</td>
         <td>${escapeHtml(String(f.valoracion).replace('.', ','))}</td>
@@ -310,13 +312,13 @@ export class FincaView extends AppElement {
     const cover = fotos.length ? storage.url(fotos[0].url) : '';
     const costeVal = coste(f, this._invitados);
     const precioLabel = f.alquiler
-      ? `${eur(f.alquiler)} alquiler + ${f.menu} €/inv.`
-      : `${f.menu} € por invitado`;
+      ? t('finca.card.precioAlq', { alquiler: eur(f.alquiler), menu: f.menu })
+      : t('finca.card.precioInv', { menu: f.menu });
     const specs = [
       { k: t('finca.table.zona'), v: `${f.zona} · ${f.km} km` },
-      { k: t('finca.card.aforoVal'), v: `${f.capSent} sent. · ${f.capPie || 0} de pie` },
+      { k: t('finca.card.aforoVal'), v: `${f.capSent} ${t('finca.unit.sent')} · ${f.capPie || 0} ${t('finca.unit.depie')}` },
       { k: t('finca.table.val'), v: `${String(f.valoracion).replace('.', ',')} / 5` },
-      { k: t('finca.compare.row.menu'), v: `${f.menu} €/inv.` },
+      { k: t('finca.compare.row.menu'), v: `${f.menu} ${t('finca.unit.porInv')}` },
       { k: t('finca.compare.row.alquiler'), v: f.alquiler ? eur(f.alquiler) : t('finca.compare.incluido') },
     ];
     return `
@@ -439,7 +441,7 @@ export class FincaView extends AppElement {
         <p class="fc-compare-hint">${escapeHtml(t('finca.compare.hint', { inv: this._invitados }))}</p>
         <div class="fc-compare-wrap">
           <table class="fc-compare-table">
-            <thead><tr><th class="fc-compare-crit">Criterio</th>${thead}</tr></thead>
+            <thead><tr><th class="fc-compare-crit">${escapeHtml(t('finca.compare.crit'))}</th>${thead}</tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>

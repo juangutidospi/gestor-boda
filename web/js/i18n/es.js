@@ -132,4 +132,10 @@ export default {
   'finca.toast.elegida': '{nombre} es la finca elegida',
   'finca.toast.candidata': '{nombre} vuelve a candidata',
   'finca.toast.creada': '{nombre} añadida como candidata',
+  'finca.unit.sent': 'sent.',
+  'finca.unit.depie': 'de pie',
+  'finca.unit.porInv': '€/inv.',
+  'finca.card.precioAlq': '{alquiler} alquiler + {menu} €/inv.',
+  'finca.card.precioInv': '{menu} € por invitado',
+  'finca.compare.crit': 'Criterio',
 };
