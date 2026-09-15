@@ -40,30 +40,35 @@ descartada). Todo con Web Components vanilla sobre la infraestructura de la Fase
 
 ## 3. Estructura de componentes
 
-La vista es grande; se descompone en subcomponentes con una responsabilidad clara.
-Los reutilizables entre ≥2 vistas van a `ui/`; los específicos de Finca viven bajo
-`components/views/finca-view/`.
+Según el patrón, **una vista es UN solo componente**: `finca-view.js` + `finca-view.css.js`.
+Los bloques visuales específicos de Finca (tarjeta de rejilla, tabla, ficha de detalle,
+comparador, visor de fotos) NO son web components sueltos: son **getters de plantilla**
+(`_cardTpl`, `_tableTpl`, `_detailTpl`, `_compareTpl`, `_lightboxTpl`…) dentro del único
+`finca-view.js`, con su wiring en `afterRender()`. Solo se extrae a `ui/` lo reutilizable
+entre ≥2 vistas.
 
 ```
 components/views/finca-view/
-├── finca-view.js / .css.js        vista raíz: estado, filtros, orquesta subcomponentes
-├── finca-card.js / .css.js        tarjeta de rejilla (una finca)
-├── finca-table.js / .css.js       tabla de fincas
-├── finca-detail.js / .css.js      ficha a pantalla completa (galería, datos, acciones)
-├── finca-compare.js / .css.js     diálogo comparativo
-└── finca-lightbox.js / .css.js    visor de fotos con teclado
+├── finca-view.js / .css.js        LA vista: estado, filtros, getters de plantilla de
+│                                  todos los bloques (card, table, detail, compare, lightbox)
+│                                  y su wiring. Un solo componente.
+└── finca-calc.js                  lógica pura (coste, filtro, orden, stats, comparador),
+                                   sin DOM ni markup — helper testeable, no un componente.
 
-components/ui/  (nuevos reutilizables)
-├── modal-dialog/                  diálogo centrado con backdrop (compare/alta) — genérico
-└── (se reutilizan) segmented-tabs, stat-card, estado-badge, search-field,
-    empty-state, skeleton, drawer, toast
+components/ui/  (reutilizables)
+├── modal-dialog/                  diálogo centrado con backdrop (compare/alta) — genérico,
+│                                  reutilizable por futuras vistas
+└── (se reutilizan) estado-badge, y los demás primitivos de la Fase 0 según haga falta
 ```
 
-Nota: el prototipo usa un `dialog-backdrop` centrado para "Comparar" y "Añadir finca",
-y un `drawer` no. Para el alta se usará el primitivo `app-drawer` de la Fase 0 (panel
-lateral) o el nuevo `modal-dialog` centrado; se elige **`modal-dialog` centrado** para
-fidelidad con el prototipo (el alta y el comparador son diálogos centrados, no drawers).
-`app-drawer` queda disponible para vistas futuras.
+Correcciones respecto a un primer intento: se descartó dividir la vista en
+`finca-card`/`finca-table`/`finca-detail`/`finca-compare`/`finca-lightbox` como componentes
+separados; todo eso vive como plantillas dentro de `finca-view.js`. Se mantienen fuera solo
+`finca-calc.js` (lógica pura) y `modal-dialog` (primitivo reutilizable).
+
+El alta y el comparador usan el `modal-dialog` centrado (fidelidad con el `dialog-backdrop`
+del prototipo). La galería/lightbox y la ficha de detalle son overlays a pantalla completa
+gestionados por estado interno de la vista (`detailId`, `lightboxIdx`).
 
 ## 4. Lógica de negocio (portada del prototipo, exacta)
 
