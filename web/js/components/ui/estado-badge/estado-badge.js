@@ -6,7 +6,7 @@ import { ENUMS } from '../../../core/enums.js';
 
 /** Variante visual (.tag-*) por estado. */
 const VARIANT = {
-  finca: { favorita: 'tag-accent', candidata: 'tag-outline', descartada: 'tag-neutral' },
+  finca: { favorita: 'tag-accent', candidata: 'tag-outline', descartada: 'tag-neutral', elegida: 'tag-accent' },
   prov: { contratado: 'tag-accent', presupuesto: 'tag-outline', contactado: 'tag-neutral', pendiente: 'tag-outline' },
 };
 const ENUM_GROUP = { finca: ENUMS.fincaEstado, prov: ENUMS.provEstado };
