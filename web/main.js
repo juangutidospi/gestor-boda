@@ -1,6 +1,6 @@
 import './js/components/views/finca-view/finca-view.js';
 import { t, setLang, getLang } from './js/i18n/index.js';
-import { configRepo } from './js/core/repos.js';
+import { configRepo, ensureSeeded } from './js/core/repos.js';
 import { escapeHtml } from './js/core/escape-html.js';
 
 /** Las seis vistas del prototipo, con su id y su clave de rótulo. */
@@ -56,36 +56,33 @@ function fillSoon(el) {
     </div>`;
 }
 
-const THEME_KEY = 'gestorboda.theme';
-const LANG_KEY = 'gestorboda.lang';
-
 /** @param {string} id Tema a aplicar ('light' | 'dark'). */
 function applyTheme(id) { document.documentElement.dataset.theme = id; }
 
-// Toggle de tema: alterna claro/oscuro y lo recuerda
+// Toggle de tema: alterna claro/oscuro y lo recuerda en configRepo
 document.getElementById('theme').addEventListener('click', () => {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   applyTheme(next);
-  try { localStorage.setItem(THEME_KEY, next); } catch { /* sin almacenamiento */ }
   configRepo.set({ theme: next });
 });
 
-// Toggle de idioma: alterna ES/EN y lo recuerda
+// Toggle de idioma: alterna ES/EN y lo recuerda en configRepo
 document.getElementById('lang').addEventListener('click', () => {
   const next = getLang() === 'es' ? 'en' : 'es';
   setLang(next);
-  try { localStorage.setItem(LANG_KEY, next); } catch { /* sin almacenamiento */ }
   configRepo.set({ lang: next });
 });
 
 // Al cambiar idioma, repintar el chrome y el nav
 window.addEventListener('i18n:changed', () => { paintChrome(); paintNav(); });
 
-// Arranque: tema e idioma recordados
-let storedTheme = null, storedLang = null;
-try { storedTheme = localStorage.getItem(THEME_KEY); storedLang = localStorage.getItem(LANG_KEY); } catch { /* sin almacenamiento */ }
-if (storedTheme) applyTheme(storedTheme);
-if (storedLang && storedLang !== getLang()) setLang(storedLang);
+// Arranque: sembrar datos de ejemplo antes de nada que pueda leerlos
+ensureSeeded();
+
+// Arranque: tema e idioma recordados en configRepo (única fuente de verdad)
+const cfg = configRepo.get();
+if (cfg.theme) applyTheme(cfg.theme);
+if (cfg.lang && cfg.lang !== getLang()) setLang(cfg.lang);
 
 paintChrome();
 paintNav();

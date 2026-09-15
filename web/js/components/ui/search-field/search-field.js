@@ -1,4 +1,5 @@
 import { AppElement } from '../../../core/AppElement.js';
+import { escapeHtml } from '../../../core/escape-html.js';
 import { styles } from './search-field.css.js';
 
 /**
@@ -15,7 +16,7 @@ export class SearchField extends AppElement {
   set value(v) { const i = this.$('input'); if (i) i.value = v; }
 
   render() {
-    const ph = this.getAttribute('placeholder') ?? '';
+    const ph = escapeHtml(this.getAttribute('placeholder') ?? '');
     this.shadowRoot.innerHTML = `<input type="search" placeholder="${ph}" aria-label="${ph}">`;
   }
 
