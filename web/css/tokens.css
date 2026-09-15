@@ -1,0 +1,63 @@
+/* Tokens del gestor de bodas. Tema claro = paleta exacta del prototipo Fincas.
+   Se enlaza en el <head> y se hereda al shadow DOM de cada componente. */
+:root {
+  /* Roles base (prototipo) */
+  --color-bg: #f7f2ea;
+  --color-surface: #fffdf9;
+  --color-text: #3d3227;
+  --color-divider: #e6dccd;
+  --color-accent: #b08256;
+  --color-accent-700: #8a6239;
+  --color-accent-100: #f4ece0;
+  --color-accent-200: #ecdfcd;
+  --color-accent-300: #ddc8ab;
+  --color-neutral-100: #f9f5ee;
+  --color-neutral-200: #eee7db;
+  --color-neutral-600: #b6a894;
+  --color-neutral-700: #6f6150;
+  --color-neutral-900: #3d3227;
+
+  /* Derivados (valen para ambos temas con color-mix) */
+  --color-text-muted: color-mix(in srgb, var(--color-text) 48%, transparent);
+
+  /* Forma y tipografía */
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --font-heading: "Cormorant Garamond", Georgia, serif;
+  --font-body: "Jost", "Helvetica Neue", sans-serif;
+
+  /* Espaciado (escala portada del design-system del prototipo) */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Sombras */
+  --shadow-sm: 0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent);
+  --shadow-md: 0 1px 2px color-mix(in srgb, var(--color-text) 8%, transparent),
+               0 8px 24px color-mix(in srgb, var(--color-text) 12%, transparent);
+  --shadow-lg: 0 2px 4px color-mix(in srgb, var(--color-text) 10%, transparent),
+               0 18px 44px color-mix(in srgb, var(--color-text) 18%, transparent);
+}
+
+/* Tema oscuro: cálido, derivado de la misma paleta. Solo se redefinen los roles. */
+[data-theme="dark"] {
+  --color-bg: #211c16;
+  --color-surface: #2b241c;
+  --color-text: #efe7da;
+  --color-divider: color-mix(in srgb, var(--color-text) 16%, transparent);
+  --color-accent: #cf9d68;
+  --color-accent-700: #b7854f;
+  --color-accent-100: color-mix(in srgb, var(--color-accent) 22%, var(--color-surface));
+  --color-accent-200: color-mix(in srgb, var(--color-accent) 30%, var(--color-surface));
+  --color-accent-300: color-mix(in srgb, var(--color-accent) 62%, #fff);
+  --color-neutral-100: #322a20;
+  --color-neutral-200: #3a3126;
+  --color-neutral-600: #a3927c;
+  --color-neutral-700: #c3b6a2;
+  --color-neutral-900: #efe7da;
+  --shadow-sm: 0 0 0 1px color-mix(in srgb, var(--color-text) 16%, transparent);
+  --shadow-md: 0 0 0 1px color-mix(in srgb, var(--color-text) 20%, transparent), 0 6px 18px rgb(0 0 0 / .5);
+  --shadow-lg: 0 0 0 1px color-mix(in srgb, var(--color-text) 28%, transparent), 0 16px 40px rgb(0 0 0 / .6);
+}
