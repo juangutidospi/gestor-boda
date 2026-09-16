@@ -30,7 +30,13 @@ Abrir http://localhost:8080/test/index.html — deben salir todas las suites en 
   de finca y flujo de estados (candidata/favorita/elegida/descartada). Un solo componente
   `views/finca-view/finca-view.js` + su `finca-view.css.js`; la lógica pura (coste, filtro,
   orden, stats, comparador) vive en `finca-view/finca-calc.js`.
-- Resto de vistas (Invitados, Salón, Proveedores, Presupuesto, Timing): próximas fases.
+- **Invitados** (Fase 2, implementada): lista por lado y círculo. 7 stats (personas por
+  lado, confirmados, etc.), vista de tarjetas agrupadas por círculo o listado, filtros
+  (lado, círculo, confirmación, invitación, menú, búsqueda), ciclo de invitación, RSVP,
+  asignación de mesa, acompañantes y alta de invitado. Un solo componente
+  `views/invitados-view/invitados-view.js` + su `.css.js`; lógica pura en `invitados-calc.js`.
+  Colores de lado/rsvp por tokens (`--lado-*`, `--rsvp-*`).
+- Resto de vistas (Salón, Proveedores, Presupuesto, Timing): próximas fases.
 
 ## Imágenes
 
