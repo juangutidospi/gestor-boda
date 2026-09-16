@@ -126,6 +126,7 @@ export class InvitadosView extends AppElement {
           <h1>${escapeHtml(t('inv.title'))}</h1>
           <p class="muted">${escapeHtml(t('inv.subtitle'))}</p>
         </div>
+        <div id="hero">${this._heroTpl}</div>
         <div id="stats">${this._statsTpl}</div>
         ${this._filtrosTpl}
         <div id="list">${this._listTpl}</div>
@@ -148,12 +149,69 @@ export class InvitadosView extends AppElement {
     const stats = calcularStats(this._invitados, this._elegida);
     return `
       <section class="inv-stats-row">
-        ${stats.map((s) => `
+        ${stats.map((s) => {
+    const num = typeof s.value === 'number' ? ` data-count="${s.value}"` : '';
+    return `
           <div class="inv-stat">
             <span class="inv-stat-label">${escapeHtml(t(s.label))}</span>
-            <span class="inv-stat-value">${escapeHtml(String(s.value))}</span>
+            <span class="inv-stat-value"${num}>${escapeHtml(String(s.value))}</span>
             <span class="inv-stat-note muted">${escapeHtml(s.noteRaw ? s.note : t(s.note, s.noteVars))}</span>
-          </div>`).join('')}
+          </div>`;
+  }).join('')}
+      </section>`;
+  }
+
+  /**
+   * Hero de progreso: anillo de confirmación (confirmados/pendientes/no) y
+   * medidor de aforo (personas en lista vs finca elegida). Se dibuja al pintar.
+   * @returns {string}
+   */
+  get _heroTpl() {
+    const inv = this._invitados;
+    const total = inv.length;
+    const conf = inv.filter((g) => g.rsvp === 'confirmado').length;
+    const pend = inv.filter((g) => g.rsvp === 'pendiente').length;
+    const no = inv.filter((g) => g.rsvp === 'no').length;
+    const pax = inv.reduce((a, g) => a + 1 + (Number(g.plus) || 0), 0);
+    const aforo = this._elegida ? this._elegida.capSent : 0;
+    const pctConf = total ? Math.round((conf / total) * 100) : 0;
+    const R = 54;
+    const C = 2 * Math.PI * R;
+    const base = total || 1;
+    const seg = (n) => (n / base) * C;
+    const arc = (len, startFrac, cls) => `<circle class="inv-donut-arc ${cls}" cx="64" cy="64" r="${R}" fill="none" stroke-width="14" stroke-linecap="round"
+      style="stroke-dasharray:${len.toFixed(1)} ${C.toFixed(1)};stroke-dashoffset:${len.toFixed(1)};transform:rotate(${(-90 + startFrac * 360).toFixed(2)}deg)"></circle>`;
+    const capPct = aforo ? Math.min(100, Math.round((pax / aforo) * 100)) : 0;
+    const meter = aforo
+      ? `<div class="inv-meter-bar"><span class="inv-meter-fill" style="width:0" data-w="${capPct}"></span></div>
+         <div class="inv-meter-cap muted"><b>${pax}</b> / ${aforo} · ${escapeHtml(this._elegida.nombre)}</div>`
+      : `<div class="inv-meter-bar inv-meter-empty"></div>
+         <div class="inv-meter-cap muted"><b>${pax}</b> ${escapeHtml(t('inv.stat.lado.note'))} · ${escapeHtml(t('inv.stat.aforo.note.sin'))}</div>`;
+    return `
+      <section class="inv-hero">
+        <div class="inv-hero-ring">
+          <svg viewBox="0 0 128 128" class="inv-donut" aria-hidden="true">
+            <circle cx="64" cy="64" r="${R}" fill="none" stroke-width="14" class="inv-donut-track"></circle>
+            ${conf ? arc(seg(conf), 0, 'is-si') : ''}
+            ${pend ? arc(seg(pend), conf / base, 'is-pend') : ''}
+            ${no ? arc(seg(no), (conf + pend) / base, 'is-no') : ''}
+          </svg>
+          <div class="inv-donut-center">
+            <span class="inv-donut-pct" data-count="${pctConf}" data-suffix="%">0%</span>
+            <span class="inv-donut-lbl muted">${escapeHtml(t('inv.stat.confirmados'))}</span>
+          </div>
+        </div>
+        <div class="inv-hero-body">
+          <div class="inv-hero-legend">
+            <span class="inv-leg"><i class="inv-leg-dot is-si"></i>${escapeHtml(t('inv.filter.confirmados'))} <b>${conf}</b></span>
+            <span class="inv-leg"><i class="inv-leg-dot is-pend"></i>${escapeHtml(t('inv.filter.pendientes'))} <b>${pend}</b></span>
+            <span class="inv-leg"><i class="inv-leg-dot is-no"></i>${escapeHtml(t('inv.filter.noVienen'))} <b>${no}</b></span>
+          </div>
+          <div class="inv-meter">
+            <div class="inv-meter-lbl">${escapeHtml(t('inv.stat.aforo'))}</div>
+            ${meter}
+          </div>
+        </div>
       </section>`;
   }
 
@@ -450,6 +508,36 @@ export class InvitadosView extends AppElement {
     this.on(this.$('#overlay'), 'input', (e) => this._onOverlayInput(e));
 
     this._wireOverlayDialogs();
+    this._animateHero();
+  }
+
+  /**
+   * Dibuja el anillo, rellena el medidor y hace subir los contadores. Respeta
+   * prefers-reduced-motion (aplica los valores finales al instante).
+   */
+  _animateHero() {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const arcs = this.$$('.inv-donut-arc');
+    const fill = this.$('.inv-meter-fill');
+    const setFinal = () => {
+      arcs.forEach((a) => { a.style.strokeDashoffset = '0'; });
+      if (fill) fill.style.width = `${fill.dataset.w || 0}%`;
+    };
+    this.$$('[data-count]').forEach((el) => {
+      const target = Number(el.dataset.count) || 0;
+      const suffix = el.dataset.suffix || '';
+      if (reduce) { el.textContent = `${target}${suffix}`; return; }
+      const dur = 720; const t0 = performance.now();
+      const step = (now) => {
+        const p = Math.min(1, (now - t0) / dur);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = `${Math.round(target * eased)}${suffix}`;
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+    if (reduce) { setFinal(); return; }
+    requestAnimationFrame(() => requestAnimationFrame(setFinal));
   }
 
   /**
