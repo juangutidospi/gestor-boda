@@ -103,8 +103,23 @@ export const styles = css`
 .inv-card-mesa-lbl { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-neutral-700); }
 .inv-card-mesa select { padding: 5px 8px; font-size: 12px; flex: 1; min-height: 34px; }
 
-.inv-card-rsvp { width: 100%; }
-.inv-card-rsvp .seg-opt { flex: 1; }
+/* Control de confirmación Sí / Pendiente / No: pastillas con color semántico
+   sobre un carril suave. El seleccionado toma su color (verde/dorado/neutro). */
+.inv-card-rsvp {
+  width: 100%; overflow: visible; gap: 3px; padding: 3px;
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  border-color: var(--color-divider);
+}
+.inv-card-rsvp .seg-opt {
+  flex: 1; min-height: 32px; border-radius: 999px; font-weight: 600;
+  color: var(--color-neutral-700);
+  transition: background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+.inv-card-rsvp .seg-opt:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.inv-card-rsvp .seg-opt[aria-selected="true"] { color: var(--color-surface); box-shadow: var(--shadow-sm); }
+.inv-card-rsvp .seg-opt[data-set="confirmado"][aria-selected="true"] { background: var(--rsvp-si-dot); }
+.inv-card-rsvp .seg-opt[data-set="pendiente"][aria-selected="true"] { background: var(--color-accent); }
+.inv-card-rsvp .seg-opt[data-set="no"][aria-selected="true"] { background: color-mix(in srgb, var(--color-text) 42%, transparent); }
 
 /* ---------- Tabla (modo listado) ---------- */
 .inv-table-wrap { overflow-x: auto; padding-top: var(--space-2); }
