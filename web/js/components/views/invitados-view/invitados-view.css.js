@@ -82,10 +82,12 @@ export const styles = css`
 
 .inv-card-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .inv-pill {
+  display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
-  padding: 4px 11px; border-radius: 999px; border: 1px solid transparent;
+  padding: 4px 11px 4px 9px; border-radius: 999px; border: 1px solid transparent;
 }
-.inv-pill-outline { background: transparent; }
+.inv-pill-outline { background: transparent; padding-left: 11px; }
+.inv-pill-ic { width: 14px; height: 14px; flex: none; }
 
 .inv-card-inv { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; }
 .inv-inv-state {

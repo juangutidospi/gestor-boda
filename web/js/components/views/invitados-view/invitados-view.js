@@ -41,6 +41,23 @@ function ladoTokens(lado) {
 }
 
 /**
+ * Icono representativo del lado (novia con velo / novio con pajarita) como SVG
+ * inline; hereda el color con currentColor. Decorativo (aria-hidden).
+ * @param {string} lado
+ * @returns {string}
+ */
+function ladoIcon(lado) {
+  if (lado === 'novia') {
+    return '<svg class="inv-pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      + '<circle cx="12" cy="6.5" r="2.7"/><path d="M9.3 6.9C7 8.4 6 10.8 6 13.8S7.4 19.2 9.5 20.2"/>'
+      + '<path d="M14.7 6.9C17 8.4 18 10.8 18 13.8s-1.4 5.4-3.5 6.4"/><path d="M9.5 20.2h5"/></svg>';
+  }
+  return '<svg class="inv-pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<circle cx="12" cy="6.5" r="2.7"/><path d="M6 20.2c0-3.4 2.7-5.7 6-5.7s6 2.3 6 5.7"/>'
+    + '<path d="M12 15.6 9 14v3.2l3-1.6 3 1.6V14z" fill="currentColor" stroke="none"/></svg>';
+}
+
+/**
  * Vista Invitados. Componente único: stats, filtros, tarjetas agrupadas por
  * círculo o listado en tabla, y alta, todo como getters de plantilla de este
  * mismo componente (sin sub-componentes de vista propios). Persistencia solo
@@ -229,7 +246,7 @@ export class InvitadosView extends AppElement {
           <button class="btn btn-ghost inv-card-remove" data-remove="${escapeHtml(g.id)}" type="button">${escapeHtml(t('inv.card.quitar'))}</button>
         </div>
         <div class="inv-card-pills">
-          <span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${escapeHtml(lado.label)}</span>
+          <span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${ladoIcon(g.lado)}${escapeHtml(lado.label)}</span>
           <span class="inv-pill inv-pill-outline" style="border-color:${lado.color};color:${lado.ink}">${escapeHtml(g.grupo)}</span>
           ${menuEspecial ? `<span class="tag tag-accent">${escapeHtml(g.menu)}</span>` : ''}
         </div>
@@ -293,7 +310,7 @@ export class InvitadosView extends AppElement {
     return `
       <tr data-id="${escapeHtml(g.id)}">
         <td><div class="inv-table-nombre">${escapeHtml(g.nombre)}</div><div class="inv-table-meta muted">${escapeHtml(meta)}</div></td>
-        <td><span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${escapeHtml(lado.label)}</span></td>
+        <td><span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${ladoIcon(g.lado)}${escapeHtml(lado.label)}</span></td>
         <td>${escapeHtml(g.grupo)}</td>
         <td>${escapeHtml(g.menu || 'Estándar')}</td>
         <td>${escapeHtml(invLabel)}</td>
