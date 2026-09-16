@@ -3,7 +3,7 @@
  * cada clave existe en es.js y en.js.
  */
 export const ENUMS = {
-  fincaEstado: { favorita: 'enum.finca.favorita', candidata: 'enum.finca.candidata', descartada: 'enum.finca.descartada' },
+  fincaEstado: { favorita: 'enum.finca.favorita', candidata: 'enum.finca.candidata', descartada: 'enum.finca.descartada', elegida: 'enum.finca.elegida' },
   invLado: { novia: 'enum.lado.novia', novio: 'enum.lado.novio' },
   invRsvp: { confirmado: 'enum.rsvp.confirmado', pendiente: 'enum.rsvp.pendiente', no: 'enum.rsvp.no' },
   invInvitacion: {
