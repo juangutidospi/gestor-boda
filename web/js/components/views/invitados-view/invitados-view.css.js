@@ -45,19 +45,45 @@ export const styles = css`
 .inv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding-top: var(--space-3); }
 
 .inv-card {
+  position: relative; overflow: hidden;
   display: flex; flex-direction: column; gap: 10px;
-  padding: var(--space-4); border-radius: 14px;
-  border: 1px solid var(--color-divider); border-left: 4px solid var(--color-divider);
+  padding: var(--space-4); border-radius: 16px;
+  background: var(--color-surface); border: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
-.inv-card-top { display: flex; align-items: flex-start; gap: var(--space-2); }
+/* Línea de acento superior fina en el color del lado (sustituye al borde izquierdo). */
+.inv-card::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 2px;
+  background: var(--card-lado, var(--color-divider)); opacity: .5;
+  transition: opacity .18s ease;
+}
+.inv-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--card-lado) 42%, var(--color-divider));
+  box-shadow: var(--shadow-md), inset 0 0 0 1px color-mix(in srgb, var(--card-lado) 22%, transparent);
+}
+.inv-card:hover::before { opacity: 1; }
+
+.inv-card-top { display: flex; align-items: flex-start; gap: 9px; }
+.inv-card-id { min-width: 0; }
+/* Punto de estado de confirmación (color por data-rsvp). */
+.inv-rsvp-dot {
+  flex: none; width: 9px; height: 9px; margin-top: 8px; border-radius: 50%;
+  background: var(--color-neutral-600);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-neutral-600) 22%, transparent);
+}
+.inv-card[data-rsvp="confirmado"] .inv-rsvp-dot { background: var(--rsvp-si-dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rsvp-si-dot) 24%, transparent); }
+.inv-card[data-rsvp="pendiente"] .inv-rsvp-dot { background: var(--rsvp-pend-dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rsvp-pend-dot) 22%, transparent); }
+.inv-card[data-rsvp="no"] .inv-rsvp-dot { background: var(--rsvp-no-dot); box-shadow: none; }
 .inv-card-nombre { font-family: var(--font-heading); font-weight: 600; font-size: 20px; line-height: 1.15; }
 .inv-card-meta { font-size: 12px; }
 .inv-card-remove { margin-left: auto; font-size: 11px; padding: 4px 8px; }
 
 .inv-card-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .inv-pill {
-  font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
-  padding: 4px 10px; border-radius: 999px; border: 1px solid transparent;
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 11px; border-radius: 999px; border: 1px solid transparent;
 }
 .inv-pill-outline { background: transparent; }
 

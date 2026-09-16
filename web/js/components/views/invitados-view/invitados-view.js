@@ -41,17 +41,6 @@ function ladoTokens(lado) {
 }
 
 /**
- * Fondo/borde de la tarjeta según la confirmación (solo variables).
- * @param {string} rsvp
- * @returns {{bg:string, border:string}}
- */
-function rsvpTokens(rsvp) {
-  if (rsvp === 'confirmado') return { bg: 'var(--rsvp-si-bg)', border: 'var(--rsvp-si-line)' };
-  if (rsvp === 'no') return { bg: 'var(--rsvp-no-bg)', border: 'var(--rsvp-no-line)' };
-  return { bg: 'var(--color-surface)', border: 'var(--color-divider)' };
-}
-
-/**
  * Vista Invitados. Componente único: stats, filtros, tarjetas agrupadas por
  * círculo o listado en tabla, y alta, todo como getters de plantilla de este
  * mismo componente (sin sub-componentes de vista propios). Persistencia solo
@@ -220,7 +209,6 @@ export class InvitadosView extends AppElement {
    */
   _cardTpl(g) {
     const lado = ladoTokens(g.lado);
-    const rsvpBg = rsvpTokens(g.rsvp);
     const plus = Number(g.plus) || 0;
     const meta = g.nota ? g.nota : (plus ? t('inv.meta.acomp') : t('inv.meta.individual'));
     const menuEspecial = g.menu && g.menu !== 'Estándar';
@@ -231,9 +219,10 @@ export class InvitadosView extends AppElement {
     const acompLinea = acompanantes.length ? acompanantes.join(' · ') : (plus ? t('inv.acomp.sinNombre', { n: plus }) : '');
     const mesaId = g.mesa || '';
     return `
-      <article class="inv-card" data-id="${escapeHtml(g.id)}" style="background:${rsvpBg.bg};border-color:${rsvpBg.border};border-left-color:${lado.color}">
+      <article class="inv-card" data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}" style="--card-lado:${lado.color}">
         <div class="inv-card-top">
-          <div>
+          <span class="inv-rsvp-dot" aria-hidden="true"></span>
+          <div class="inv-card-id">
             <div class="inv-card-nombre">${escapeHtml(g.nombre)}</div>
             <div class="inv-card-meta muted">${escapeHtml(meta)}</div>
           </div>
