@@ -21,7 +21,7 @@ export const styles = css`
 .inv-stat { padding: var(--space-4); border-left: 1px solid var(--color-divider); }
 .inv-stat:first-child { border-left: 0; }
 .inv-stat-label { display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); }
-.inv-stat-value { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 30px; line-height: 1.1; margin-top: 4px; white-space: nowrap; }
+.inv-stat-value { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 30px; line-height: 1.1; margin-top: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .inv-stat-note { display: block; }
 
 /* ---------- Filtros ---------- */
@@ -38,7 +38,7 @@ export const styles = css`
 }
 .inv-grupo-head:first-child { padding-top: 0; }
 .inv-grupo-head h3 { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 24px; }
-.inv-grupo-sub { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-neutral-700); }
+.inv-grupo-sub { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-neutral-700); font-variant-numeric: tabular-nums; }
 .inv-grupo-head::after { content: ''; flex: 1; height: 1px; background: var(--color-divider); min-width: 40px; }
 
 /* ---------- Rejilla y tarjeta de invitado ---------- */
@@ -50,35 +50,50 @@ export const styles = css`
   padding: var(--space-4); border-radius: 16px;
   background: var(--color-surface); border: 1px solid var(--color-divider);
   box-shadow: var(--shadow-sm);
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, opacity .2s ease;
 }
 /* Línea de acento superior fina en el color del lado (sustituye al borde izquierdo). */
 .inv-card::before {
   content: ''; position: absolute; inset: 0 0 auto 0; height: 2px;
   background: var(--card-lado, var(--color-divider)); opacity: .5;
-  transition: opacity .18s ease;
+  transition: opacity .2s ease;
 }
 .inv-card:hover {
   transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--card-lado) 42%, var(--color-divider));
-  box-shadow: var(--shadow-md), inset 0 0 0 1px color-mix(in srgb, var(--card-lado) 22%, transparent);
+  box-shadow: var(--shadow-lg), inset 0 0 0 1px color-mix(in srgb, var(--card-lado) 22%, transparent);
 }
 .inv-card:hover::before { opacity: 1; }
+/* Jerarquía por estado: se atenúan los que no vienen; sube el foco a los confirmados. */
+.inv-card[data-rsvp="no"] { opacity: .82; }
+.inv-card[data-rsvp="no"]:hover { opacity: 1; }
 
-.inv-card-top { display: flex; align-items: flex-start; gap: 9px; }
-.inv-card-id { min-width: 0; }
-/* Punto de estado de confirmación (color por data-rsvp). */
-.inv-rsvp-dot {
-  flex: none; width: 9px; height: 9px; margin-top: 8px; border-radius: 50%;
-  background: var(--color-neutral-600);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-neutral-600) 22%, transparent);
+.inv-card-top { display: flex; align-items: center; gap: 11px; }
+.inv-card-id { min-width: 0; flex: 1; }
+
+/* Avatar con monograma (teñido por lado) y punto de estado de confirmación. */
+.inv-avatar {
+  position: relative; flex: none; width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: var(--font-heading); font-weight: 600; font-size: 16px; letter-spacing: .02em;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--card-lado) 40%, transparent);
 }
-.inv-card[data-rsvp="confirmado"] .inv-rsvp-dot { background: var(--rsvp-si-dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rsvp-si-dot) 24%, transparent); }
-.inv-card[data-rsvp="pendiente"] .inv-rsvp-dot { background: var(--rsvp-pend-dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rsvp-pend-dot) 22%, transparent); }
-.inv-card[data-rsvp="no"] .inv-rsvp-dot { background: var(--rsvp-no-dot); box-shadow: none; }
-.inv-card-nombre { font-family: var(--font-heading); font-weight: 600; font-size: 20px; line-height: 1.15; }
+.inv-avatar-status {
+  position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--color-surface); background: var(--color-neutral-600);
+  transition: background .2s ease;
+}
+.inv-card[data-rsvp="confirmado"] .inv-avatar-status { background: var(--rsvp-si-dot); }
+.inv-card[data-rsvp="pendiente"] .inv-avatar-status { background: var(--rsvp-pend-dot); }
+.inv-card[data-rsvp="no"] .inv-avatar-status { background: var(--rsvp-no-dot); }
+
+.inv-card-nombre { font-family: var(--font-heading); font-weight: 600; font-size: 20px; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-card-meta { font-size: 12px; }
-.inv-card-remove { margin-left: auto; font-size: 11px; padding: 4px 8px; }
+.inv-card-remove { margin-left: auto; font-size: 11px; padding: 4px 8px; align-self: flex-start; }
+
+/* Iconos de línea en filas de metadatos. */
+.inv-row-ic { width: 13px; height: 13px; flex: none; opacity: .85; }
 
 .inv-card-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .inv-pill {
@@ -89,8 +104,10 @@ export const styles = css`
 .inv-pill-outline { background: transparent; padding-left: 11px; }
 .inv-pill-ic { width: 14px; height: 14px; flex: none; }
 
+.inv-card-pills .tag { gap: 5px; }
 .inv-card-inv { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; }
 .inv-inv-state {
+  display: inline-flex; align-items: center; gap: 5px;
   letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px;
   background: var(--color-neutral-100); border: 1px solid var(--color-divider); color: var(--color-neutral-700);
 }
@@ -100,8 +117,14 @@ export const styles = css`
 .inv-card-acomp-lbl { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
 
 .inv-card-mesa { display: flex; align-items: center; gap: 8px; }
-.inv-card-mesa-lbl { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-neutral-700); }
+.inv-card-mesa-lbl { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-neutral-700); }
 .inv-card-mesa select { padding: 5px 8px; font-size: 12px; flex: 1; min-height: 34px; }
+
+/* Chevron propio para los <select> (el nativo abarata el conjunto). */
+.inv-card-mesa select, .inv-table select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239a8f7e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 11px;
+}
 
 /* Control de confirmación Sí / Pendiente / No: pastillas con color semántico
    sobre un carril suave. El seleccionado toma su color (verde/dorado/neutro). */
@@ -116,6 +139,7 @@ export const styles = css`
   transition: background .16s ease, color .16s ease, box-shadow .16s ease;
 }
 .inv-card-rsvp .seg-opt:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.inv-card-rsvp .seg-opt:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .inv-card-rsvp .seg-opt[aria-selected="true"] { color: var(--color-surface); box-shadow: var(--shadow-sm); }
 .inv-card-rsvp .seg-opt[data-set="confirmado"][aria-selected="true"] { background: var(--rsvp-si-dot); }
 .inv-card-rsvp .seg-opt[data-set="pendiente"][aria-selected="true"] { background: var(--color-accent); }

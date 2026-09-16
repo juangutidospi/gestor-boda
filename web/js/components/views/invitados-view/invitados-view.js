@@ -58,6 +58,31 @@ function ladoIcon(lado) {
 }
 
 /**
+ * Iniciales para el avatar (primeras letras de las dos primeras palabras).
+ * @param {string} nombre
+ * @returns {string}
+ */
+function iniciales(nombre) {
+  const partes = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase() || '·';
+}
+
+/**
+ * Icono de línea pequeño para las filas de metadatos de la tarjeta.
+ * @param {string} paths Contenido del SVG (paths).
+ * @returns {string}
+ */
+function metaIcon(paths) {
+  return `<svg class="inv-row-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+/** @returns {string} Icono de sobre (invitación). */
+function icSobre() { return metaIcon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6 8.5-6"/>'); }
+/** @returns {string} Icono de mesa (asignación). */
+function icMesa() { return metaIcon('<rect x="3" y="8" width="18" height="3" rx="1"/><path d="M6 11v7M18 11v7"/>'); }
+/** @returns {string} Icono de cubiertos (menú especial). */
+function icCubiertos() { return metaIcon('<path d="M7 3v7M5 3v3.5a2 2 0 0 0 4 0V3M7 10v11"/><path d="M17.5 3c-1.4 0-2.4 2-2.4 5s1 4 2.4 4M17.5 12v9"/>'); }
+
+/**
  * Vista Invitados. Componente único: stats, filtros, tarjetas agrupadas por
  * círculo o listado en tabla, y alta, todo como getters de plantilla de este
  * mismo componente (sin sub-componentes de vista propios). Persistencia solo
@@ -238,7 +263,10 @@ export class InvitadosView extends AppElement {
     return `
       <article class="inv-card" data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}" style="--card-lado:${lado.color}">
         <div class="inv-card-top">
-          <span class="inv-rsvp-dot" aria-hidden="true"></span>
+          <span class="inv-avatar" style="background:${lado.bg};color:${lado.ink}" aria-hidden="true">
+            ${escapeHtml(iniciales(g.nombre))}
+            <span class="inv-avatar-status"></span>
+          </span>
           <div class="inv-card-id">
             <div class="inv-card-nombre">${escapeHtml(g.nombre)}</div>
             <div class="inv-card-meta muted">${escapeHtml(meta)}</div>
@@ -248,15 +276,15 @@ export class InvitadosView extends AppElement {
         <div class="inv-card-pills">
           <span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${ladoIcon(g.lado)}${escapeHtml(lado.label)}</span>
           <span class="inv-pill inv-pill-outline" style="border-color:${lado.color};color:${lado.ink}">${escapeHtml(g.grupo)}</span>
-          ${menuEspecial ? `<span class="tag tag-accent">${escapeHtml(g.menu)}</span>` : ''}
+          ${menuEspecial ? `<span class="tag tag-accent">${icCubiertos()}${escapeHtml(g.menu)}</span>` : ''}
         </div>
         <div class="inv-card-inv">
-          <span class="inv-inv-state">${escapeHtml(invLabel)}</span>
+          <span class="inv-inv-state">${icSobre()}${escapeHtml(invLabel)}</span>
           <button class="btn btn-ghost" data-nextinv="${escapeHtml(g.id)}" type="button">${escapeHtml(invAccion)}</button>
         </div>
         ${acompLinea ? `<div class="inv-card-acomp"><span class="inv-card-acomp-lbl">${escapeHtml(t('inv.card.con'))}</span> ${escapeHtml(acompLinea)}</div>` : ''}
         <div class="inv-card-mesa">
-          <span class="inv-card-mesa-lbl">${escapeHtml(t('inv.card.mesa'))}</span>
+          <span class="inv-card-mesa-lbl">${icMesa()}${escapeHtml(t('inv.card.mesa'))}</span>
           <select class="input" data-mesa="${escapeHtml(g.id)}">
             <option value=""${mesaId === '' ? ' selected' : ''}>${escapeHtml(t('inv.card.sinMesa'))}</option>
             ${this._mesas.map((m) => `<option value="${escapeHtml(m.id)}"${m.id === mesaId ? ' selected' : ''}>${escapeHtml(m.nombre)}</option>`).join('')}
