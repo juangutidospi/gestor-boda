@@ -39,6 +39,12 @@
                0 8px 24px color-mix(in srgb, var(--color-text) 12%, transparent);
   --shadow-lg: 0 2px 4px color-mix(in srgb, var(--color-text) 10%, transparent),
                0 18px 44px color-mix(in srgb, var(--color-text) 18%, transparent);
+
+  /* Lado (novia/novio) y confirmación (RSVP) — vista Invitados */
+  --lado-novia: #b98a91; --lado-novia-bg: #f9ecee; --lado-novia-ink: #8a4f58;
+  --lado-novio: #7f9bb3; --lado-novio-bg: #e8eff5; --lado-novio-ink: #3f5a73;
+  --rsvp-si-bg: #eef4ec; --rsvp-si-line: #cbdcc5;
+  --rsvp-no-bg: #f2eeea; --rsvp-no-line: #ded4c8;
 }
 
 /* Tema oscuro: cálido, derivado de la misma paleta. Solo se redefinen los roles. */
@@ -60,4 +66,10 @@
   --shadow-sm: 0 0 0 1px color-mix(in srgb, var(--color-text) 16%, transparent);
   --shadow-md: 0 0 0 1px color-mix(in srgb, var(--color-text) 20%, transparent), 0 6px 18px rgb(0 0 0 / .5);
   --shadow-lg: 0 0 0 1px color-mix(in srgb, var(--color-text) 28%, transparent), 0 16px 40px rgb(0 0 0 / .6);
+
+  /* Lado (novia/novio) y confirmación (RSVP) — vista Invitados */
+  --lado-novia: #d9a6ad; --lado-novia-bg: color-mix(in srgb, #d9a6ad 22%, var(--color-surface)); --lado-novia-ink: #e7c3c8;
+  --lado-novio: #8fb0cc; --lado-novio-bg: color-mix(in srgb, #8fb0cc 22%, var(--color-surface)); --lado-novio-ink: #cfe0ee;
+  --rsvp-si-bg: color-mix(in srgb, #5f9e6f 18%, var(--color-surface)); --rsvp-si-line: color-mix(in srgb, #5f9e6f 40%, transparent);
+  --rsvp-no-bg: color-mix(in srgb, var(--color-text) 8%, var(--color-surface)); --rsvp-no-line: var(--color-divider);
 }
