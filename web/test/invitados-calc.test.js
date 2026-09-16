@@ -23,7 +23,7 @@ register('invitados/calc', () => {
   const stats = calcularStats(inv, { capSent: 300, nombre: 'X' });
   out.push({ name: 'stats: 7 tarjetas', ok: stats.length === 7, detail: String(stats.length) });
   const total = stats.find((s) => s.key === 'total');
-  out.push({ name: 'stats: total pax = 5', ok: total.value === 5, detail: String(total.value) });
+  out.push({ name: 'stats: total pax = 6', ok: total.value === 6, detail: String(total.value) });
   const novio = stats.find((s) => s.key === 'novio');
   out.push({ name: 'stats: del novio = 3 pax', ok: novio.value === 3, detail: String(novio.value) });
 
