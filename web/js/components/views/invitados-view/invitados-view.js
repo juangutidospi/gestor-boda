@@ -1,0 +1,592 @@
+import { AppElement } from '../../../core/AppElement.js';
+import { escapeHtml } from '../../../core/escape-html.js';
+import { styles } from './invitados-view.css.js';
+import { t } from '../../../i18n/index.js';
+import { ENUMS } from '../../../core/enums.js';
+import {
+  parseAcomp, filtrar, pax, circulosDe, menusDe, agrupar, calcularStats,
+  siguienteInvitacion, accionInvitacion,
+} from './invitados-calc.js';
+import {
+  ensureSeeded, invitadosRepo, mesasRepo, fincasRepo, configRepo,
+} from '../../../core/repos.js';
+import '../../ui/modal-dialog/modal-dialog.js';
+import '../../ui/empty-state/empty-state.js';
+import '../../ui/toast/toast.js';
+
+/** Círculos por defecto ofrecidos al dar de alta (se completan con los ya usados). */
+const GRUPOS_ALTA = ['Familia directa', 'Familia extensa', 'Amigos de siempre', 'Amigos del trabajo'];
+
+/** Orden de los estados de invitación y de confirmación usados en los selects de alta. */
+const ORDEN_INVITACION = ['sin enviar', 'enviada', 'recordatorio', 'respondida'];
+const ORDEN_RSVP_ALTA = ['pendiente', 'confirmado', 'no'];
+
+/** Borrador vacío del formulario de alta. */
+function draftVacio() {
+  return {
+    nombre: '', lado: 'novio', grupo: GRUPOS_ALTA[0], acomp: '', menu: 'Estándar', invitacion: 'sin enviar', rsvp: 'pendiente', nota: '',
+  };
+}
+
+/**
+ * Tokens de color según el lado (solo variables, nunca literales).
+ * @param {string} lado
+ * @returns {{color:string, bg:string, ink:string, label:string}}
+ */
+function ladoTokens(lado) {
+  const key = lado === 'novia' ? 'novia' : 'novio';
+  return {
+    color: `var(--lado-${key})`, bg: `var(--lado-${key}-bg)`, ink: `var(--lado-${key}-ink)`, label: t(ENUMS.invLado[key]),
+  };
+}
+
+/**
+ * Fondo/borde de la tarjeta según la confirmación (solo variables).
+ * @param {string} rsvp
+ * @returns {{bg:string, border:string}}
+ */
+function rsvpTokens(rsvp) {
+  if (rsvp === 'confirmado') return { bg: 'var(--rsvp-si-bg)', border: 'var(--rsvp-si-line)' };
+  if (rsvp === 'no') return { bg: 'var(--rsvp-no-bg)', border: 'var(--rsvp-no-line)' };
+  return { bg: 'var(--color-surface)', border: 'var(--color-divider)' };
+}
+
+/**
+ * Vista Invitados. Componente único: stats, filtros, tarjetas agrupadas por
+ * círculo o listado en tabla, y alta, todo como getters de plantilla de este
+ * mismo componente (sin sub-componentes de vista propios). Persistencia solo
+ * vía invitadosRepo/mesasRepo/fincasRepo.
+ */
+export class InvitadosView extends AppElement {
+  static styles = [styles];
+
+  /** @type {object[]} */
+  _invitados = [];
+  /** @type {object[]} */
+  _mesas = [];
+  /** @type {object|null} Finca elegida, para el aforo. */
+  _elegida = null;
+  _q = '';
+  _lado = 'Todos';
+  _grupo = 'Todos';
+  _rsvp = 'Todos';
+  _inv = 'Todas';
+  _menu = 'Todos';
+  /** @type {'tarjetas'|'lista'} */
+  _view = 'tarjetas';
+  _addOpen = false;
+  _draft = draftVacio();
+
+  /** Público: lo llama el router al abrir la vista. */
+  refresh() {
+    ensureSeeded();
+    this._invitados = invitadosRepo.list();
+    this._mesas = mesasRepo.list();
+    this._elegida = fincasRepo.list().find((f) => f.estado === 'elegida') || null;
+    this._paint();
+  }
+
+  render() {
+    const visibles = this._visible;
+    this.shadowRoot.innerHTML = `
+      <div class="view-content">
+        <div class="page-head">
+          <span class="eyebrow">${escapeHtml(t('nav.invitados'))}</span>
+          <h1>${escapeHtml(t('inv.title'))}</h1>
+          <p class="muted">${escapeHtml(t('inv.subtitle'))}</p>
+        </div>
+        <div id="stats">${this._statsTpl}</div>
+        ${this._filtrosTpl}
+        <div id="list">${this._listTpl}</div>
+        <div id="empty">${visibles.length ? '' : this._emptyTpl}</div>
+        <p class="inv-foot muted">${escapeHtml(this._footTxt)}</p>
+        <div id="overlay">${this._addOpen ? this._altaTpl : ''}</div>
+        <app-toast id="toast"></app-toast>
+      </div>`;
+  }
+
+  /** @returns {string} Texto del pie: personas en lista y base de cálculo de coste. */
+  get _footTxt() {
+    const n = this._invitados.reduce((a, g) => a + pax(g), 0);
+    const inv = configRepo.get().guestCount || 140;
+    return t('inv.foot', { n, inv });
+  }
+
+  /** @returns {string} Las siete tarjetas de estadística. */
+  get _statsTpl() {
+    const stats = calcularStats(this._invitados, this._elegida);
+    return `
+      <section class="inv-stats-row">
+        ${stats.map((s) => `
+          <div class="inv-stat">
+            <span class="inv-stat-label">${escapeHtml(t(s.label))}</span>
+            <span class="inv-stat-value">${escapeHtml(String(s.value))}</span>
+            <span class="inv-stat-note muted">${escapeHtml(s.noteRaw ? s.note : t(s.note, s.noteVars))}</span>
+          </div>`).join('')}
+      </section>`;
+  }
+
+  /** @returns {string} Barra de filtros (estática: se cablea una sola vez). */
+  get _filtrosTpl() {
+    const circulos = circulosDe(this._invitados);
+    const menus = menusDe(this._invitados);
+    return `
+      <section class="inv-filtros">
+        <div class="field inv-search">
+          <label>${escapeHtml(t('inv.search'))}</label>
+          <input class="input" type="search" id="f-q" placeholder="${escapeHtml(t('inv.search.ph'))}" value="${escapeHtml(this._q)}">
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.lado'))}</label>
+          <select class="input" id="f-lado">
+            <option value="Todos"${this._lado === 'Todos' ? ' selected' : ''}>${escapeHtml(t('inv.filter.ambos'))}</option>
+            <option value="novio"${this._lado === 'novio' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invLado.novio))}</option>
+            <option value="novia"${this._lado === 'novia' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invLado.novia))}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.circulo'))}</label>
+          <select class="input" id="f-grupo">
+            <option value="Todos"${this._grupo === 'Todos' ? ' selected' : ''}>${escapeHtml(t('inv.filter.todos'))}</option>
+            ${circulos.map((c) => `<option value="${escapeHtml(c)}"${c === this._grupo ? ' selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.confirmacion'))}</label>
+          <select class="input" id="f-rsvp">
+            <option value="Todos"${this._rsvp === 'Todos' ? ' selected' : ''}>${escapeHtml(t('inv.filter.todas'))}</option>
+            <option value="confirmado"${this._rsvp === 'confirmado' ? ' selected' : ''}>${escapeHtml(t('inv.filter.confirmados'))}</option>
+            <option value="pendiente"${this._rsvp === 'pendiente' ? ' selected' : ''}>${escapeHtml(t('inv.filter.pendientes'))}</option>
+            <option value="no"${this._rsvp === 'no' ? ' selected' : ''}>${escapeHtml(t('inv.filter.noVienen'))}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.invitacion'))}</label>
+          <select class="input" id="f-inv">
+            <option value="Todas"${this._inv === 'Todas' ? ' selected' : ''}>${escapeHtml(t('inv.filter.todas'))}</option>
+            <option value="sin enviar"${this._inv === 'sin enviar' ? ' selected' : ''}>${escapeHtml(t('inv.filter.inv.sinEnviar'))}</option>
+            <option value="enviada"${this._inv === 'enviada' ? ' selected' : ''}>${escapeHtml(t('inv.filter.inv.enviada'))}</option>
+            <option value="recordatorio"${this._inv === 'recordatorio' ? ' selected' : ''}>${escapeHtml(t('inv.filter.inv.recordatorio'))}</option>
+            <option value="respondida"${this._inv === 'respondida' ? ' selected' : ''}>${escapeHtml(t('inv.filter.inv.respondida'))}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.menu'))}</label>
+          <select class="input" id="f-menu">
+            <option value="Todos"${this._menu === 'Todos' ? ' selected' : ''}>${escapeHtml(t('inv.filter.todos'))}</option>
+            <option value="especiales"${this._menu === 'especiales' ? ' selected' : ''}>${escapeHtml(t('inv.filter.menu.especiales'))}</option>
+            ${menus.map((m) => `<option value="${escapeHtml(m)}"${m === this._menu ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="seg inv-view-toggle">
+          <button type="button" class="seg-opt" id="v-tarjetas" aria-selected="${this._view === 'tarjetas'}">${escapeHtml(t('inv.view.cards'))}</button>
+          <button type="button" class="seg-opt" id="v-lista" aria-selected="${this._view === 'lista'}">${escapeHtml(t('inv.view.list'))}</button>
+        </div>
+        <button type="button" class="btn btn-primary inv-add" id="add-open">+&nbsp;&nbsp;${escapeHtml(t('inv.add'))}</button>
+      </section>`;
+  }
+
+  /** @returns {object[]} Invitados filtrados según el estado actual. */
+  get _visible() {
+    return filtrar(this._invitados, {
+      q: this._q, lado: this._lado, grupo: this._grupo, rsvp: this._rsvp, inv: this._inv, menu: this._menu,
+    });
+  }
+
+  /** @returns {string} Tarjetas agrupadas o tabla, según el modo de vista (vacío si no hay resultados). */
+  get _listTpl() {
+    const lista = this._visible;
+    if (!lista.length) return '';
+    return this._view === 'lista' ? this._tablaTpl(lista) : this._gruposTpl(lista);
+  }
+
+  /**
+   * @param {object[]} lista Invitados ya filtrados.
+   * @returns {string} Grupos por círculo, cada uno con encabezado y su rejilla de tarjetas.
+   */
+  _gruposTpl(lista) {
+    const grupos = agrupar(lista);
+    return grupos.map((gr) => `
+      <div class="inv-grupo-head">
+        <h3>${escapeHtml(gr.titulo)}</h3>
+        <span class="inv-grupo-sub">${escapeHtml(t('inv.grupo.subtotal', { inv: gr.inv, pax: gr.pax, conf: gr.conf }))}</span>
+      </div>
+      <section class="inv-grid">${gr.items.map((g) => this._cardTpl(g)).join('')}</section>`).join('');
+  }
+
+  /**
+   * @param {object} g
+   * @returns {string} Una tarjeta de invitado.
+   */
+  _cardTpl(g) {
+    const lado = ladoTokens(g.lado);
+    const rsvpBg = rsvpTokens(g.rsvp);
+    const plus = Number(g.plus) || 0;
+    const meta = g.nota ? g.nota : (plus ? t('inv.meta.acomp') : t('inv.meta.individual'));
+    const menuEspecial = g.menu && g.menu !== 'Estándar';
+    const invEstado = g.invitacion || 'sin enviar';
+    const invLabel = t(ENUMS.invInvitacion[invEstado]);
+    const invAccion = t(accionInvitacion(invEstado));
+    const acompanantes = g.acompanantes || [];
+    const acompLinea = acompanantes.length ? acompanantes.join(' · ') : (plus ? t('inv.acomp.sinNombre', { n: plus }) : '');
+    const mesaId = g.mesa || '';
+    return `
+      <article class="inv-card" data-id="${escapeHtml(g.id)}" style="background:${rsvpBg.bg};border-color:${rsvpBg.border};border-left-color:${lado.color}">
+        <div class="inv-card-top">
+          <div>
+            <div class="inv-card-nombre">${escapeHtml(g.nombre)}</div>
+            <div class="inv-card-meta muted">${escapeHtml(meta)}</div>
+          </div>
+          <button class="btn btn-ghost inv-card-remove" data-remove="${escapeHtml(g.id)}" type="button">${escapeHtml(t('inv.card.quitar'))}</button>
+        </div>
+        <div class="inv-card-pills">
+          <span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${escapeHtml(lado.label)}</span>
+          <span class="inv-pill inv-pill-outline" style="border-color:${lado.color};color:${lado.ink}">${escapeHtml(g.grupo)}</span>
+          ${menuEspecial ? `<span class="tag tag-accent">${escapeHtml(g.menu)}</span>` : ''}
+        </div>
+        <div class="inv-card-inv">
+          <span class="inv-inv-state">${escapeHtml(invLabel)}</span>
+          <button class="btn btn-ghost" data-nextinv="${escapeHtml(g.id)}" type="button">${escapeHtml(invAccion)}</button>
+        </div>
+        ${acompLinea ? `<div class="inv-card-acomp"><span class="inv-card-acomp-lbl">${escapeHtml(t('inv.card.con'))}</span> ${escapeHtml(acompLinea)}</div>` : ''}
+        <div class="inv-card-mesa">
+          <span class="inv-card-mesa-lbl">${escapeHtml(t('inv.card.mesa'))}</span>
+          <select class="input" data-mesa="${escapeHtml(g.id)}">
+            <option value=""${mesaId === '' ? ' selected' : ''}>${escapeHtml(t('inv.card.sinMesa'))}</option>
+            ${this._mesas.map((m) => `<option value="${escapeHtml(m.id)}"${m.id === mesaId ? ' selected' : ''}>${escapeHtml(m.nombre)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="seg inv-card-rsvp">
+          <button type="button" class="seg-opt" data-conf="${escapeHtml(g.id)}" data-set="confirmado" aria-selected="${g.rsvp === 'confirmado'}">${escapeHtml(t('inv.card.si'))}</button>
+          <button type="button" class="seg-opt" data-conf="${escapeHtml(g.id)}" data-set="pendiente" aria-selected="${g.rsvp === 'pendiente'}">${escapeHtml(t('inv.card.pendiente'))}</button>
+          <button type="button" class="seg-opt" data-conf="${escapeHtml(g.id)}" data-set="no" aria-selected="${g.rsvp === 'no'}">${escapeHtml(t('inv.card.no'))}</button>
+        </div>
+      </article>`;
+  }
+
+  /**
+   * @param {object[]} lista Invitados ya filtrados.
+   * @returns {string} Tabla de invitados (modo listado).
+   */
+  _tablaTpl(lista) {
+    return `
+      <div class="inv-table-wrap">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>${escapeHtml(t('inv.table.invitado'))}</th>
+              <th>${escapeHtml(t('inv.table.lado'))}</th>
+              <th>${escapeHtml(t('inv.table.circulo'))}</th>
+              <th>${escapeHtml(t('inv.table.menu'))}</th>
+              <th>${escapeHtml(t('inv.table.invitacion'))}</th>
+              <th>${escapeHtml(t('inv.table.acomp'))}</th>
+              <th>${escapeHtml(t('inv.table.mesa'))}</th>
+              <th>${escapeHtml(t('inv.table.confirmacion'))}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${lista.map((g) => this._rowTpl(g)).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+
+  /**
+   * @param {object} g
+   * @returns {string} Una fila de la tabla.
+   */
+  _rowTpl(g) {
+    const lado = ladoTokens(g.lado);
+    const plus = Number(g.plus) || 0;
+    const meta = g.nota ? g.nota : (plus ? t('inv.meta.acomp') : t('inv.meta.individual'));
+    const invLabel = t(ENUMS.invInvitacion[g.invitacion || 'sin enviar']);
+    const mesaNombre = this._mesas.find((m) => m.id === g.mesa)?.nombre || t('inv.card.sinMesa');
+    const plusCorto = plus ? `+${plus}` : '—';
+    return `
+      <tr data-id="${escapeHtml(g.id)}">
+        <td><div class="inv-table-nombre">${escapeHtml(g.nombre)}</div><div class="inv-table-meta muted">${escapeHtml(meta)}</div></td>
+        <td><span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${escapeHtml(lado.label)}</span></td>
+        <td>${escapeHtml(g.grupo)}</td>
+        <td>${escapeHtml(g.menu || 'Estándar')}</td>
+        <td>${escapeHtml(invLabel)}</td>
+        <td>${escapeHtml(plusCorto)}</td>
+        <td>${escapeHtml(mesaNombre)}</td>
+        <td>
+          <select class="input" data-rsvp="${escapeHtml(g.id)}">
+            <option value="confirmado"${g.rsvp === 'confirmado' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.confirmado))}</option>
+            <option value="pendiente"${g.rsvp === 'pendiente' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.pendiente))}</option>
+            <option value="no"${g.rsvp === 'no' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.no))}</option>
+          </select>
+        </td>
+        <td><button class="btn btn-ghost" data-remove="${escapeHtml(g.id)}" type="button">${escapeHtml(t('inv.card.quitar'))}</button></td>
+      </tr>`;
+  }
+
+  /** @returns {string} Estado vacío cuando ningún filtro coincide. */
+  get _emptyTpl() {
+    return `
+      <empty-state title="${escapeHtml(t('inv.empty.title'))}" desc="${escapeHtml(t('inv.empty.desc'))}"></empty-state>
+      <button class="btn btn-primary" id="empty-add" type="button">+&nbsp;&nbsp;${escapeHtml(t('inv.add'))}</button>`;
+  }
+
+  /** @returns {string} Diálogo de alta de invitado, dentro de modal-dialog. */
+  get _altaTpl() {
+    const d = this._draft;
+    const circulos = Array.from(new Set([...GRUPOS_ALTA, ...circulosDe(this._invitados)]));
+    const menus = menusDe(this._invitados);
+    return `
+      <modal-dialog id="add-dialog">
+        <div class="inv-add-grid">
+          <div class="field inv-add-span2">
+            <label>${escapeHtml(t('inv.add.nombre'))}</label>
+            <input class="input" id="add-nombre" placeholder="${escapeHtml(t('inv.add.nombre.ph'))}" value="${escapeHtml(d.nombre)}">
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.lado'))}</label>
+            <select class="input" id="add-lado">
+              <option value="novio"${d.lado === 'novio' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invLado.novio))}</option>
+              <option value="novia"${d.lado === 'novia' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invLado.novia))}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.circulo'))}</label>
+            <select class="input" id="add-grupo">
+              ${circulos.map((c) => `<option value="${escapeHtml(c)}"${c === d.grupo ? ' selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field inv-add-span2">
+            <label>${escapeHtml(t('inv.add.acomp'))}</label>
+            <textarea class="input" id="add-acomp" rows="2" placeholder="${escapeHtml(t('inv.add.nombre.ph'))}">${escapeHtml(d.acomp)}</textarea>
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.menu'))}</label>
+            <select class="input" id="add-menu">
+              ${menus.map((m) => `<option value="${escapeHtml(m)}"${m === d.menu ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.invitacion'))}</label>
+            <select class="input" id="add-invitacion">
+              ${ORDEN_INVITACION.map((k) => `<option value="${escapeHtml(k)}"${k === d.invitacion ? ' selected' : ''}>${escapeHtml(t(ENUMS.invInvitacion[k]))}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.rsvp'))}</label>
+            <select class="input" id="add-rsvp">
+              ${ORDEN_RSVP_ALTA.map((k) => `<option value="${escapeHtml(k)}"${k === d.rsvp ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp[k]))}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field inv-add-span2">
+            <label>${escapeHtml(t('inv.add.nota'))}</label>
+            <input class="input" id="add-nota" placeholder="${escapeHtml(t('inv.add.nota.ph'))}" value="${escapeHtml(d.nota)}">
+          </div>
+        </div>
+        <div class="inv-add-foot">
+          <button class="btn btn-primary" id="add-save" type="button">${escapeHtml(t('inv.add.save'))}</button>
+        </div>
+      </modal-dialog>`;
+  }
+
+  afterRender() {
+    this.on(this.$('#f-q'), 'input', (e) => { this._q = e.target.value; this._apply(); });
+    this.on(this.$('#f-lado'), 'change', (e) => { this._lado = e.target.value; this._apply(); });
+    this.on(this.$('#f-grupo'), 'change', (e) => { this._grupo = e.target.value; this._apply(); });
+    this.on(this.$('#f-rsvp'), 'change', (e) => { this._rsvp = e.target.value; this._apply(); });
+    this.on(this.$('#f-inv'), 'change', (e) => { this._inv = e.target.value; this._apply(); });
+    this.on(this.$('#f-menu'), 'change', (e) => { this._menu = e.target.value; this._apply(); });
+    this.on(this.$('#v-tarjetas'), 'click', () => this._setView('tarjetas'));
+    this.on(this.$('#v-lista'), 'click', () => this._setView('lista'));
+    this.on(this.$('#add-open'), 'click', () => this._openAdd());
+
+    // Contenedores estables: delegación una sola vez por render completo.
+    this.on(this.$('#list'), 'click', (e) => this._onListClick(e));
+    this.on(this.$('#list'), 'change', (e) => this._onListChange(e));
+    this.on(this.$('#empty'), 'click', (e) => { if (e.target.closest('#empty-add')) this._openAdd(); });
+    this.on(this.$('#overlay'), 'click', (e) => this._onOverlayClick(e));
+    this.on(this.$('#overlay'), 'change', (e) => this._onOverlayChange(e));
+    this.on(this.$('#overlay'), 'input', (e) => this._onOverlayInput(e));
+
+    this._wireOverlayDialogs();
+  }
+
+  /**
+   * Re-renderiza solo stats/lista/vacío para que la búsqueda no pierda el
+   * foco del input (la barra de filtros nunca se vuelve a pintar entera).
+   */
+  _apply() {
+    const stats = this.$('#stats');
+    if (stats) stats.innerHTML = this._statsTpl;
+    const list = this.$('#list');
+    if (list) list.innerHTML = this._listTpl;
+    const empty = this.$('#empty');
+    if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
+  }
+
+  /** Repinta solo el overlay (alta) y recablea su diálogo. */
+  _paintOverlay() {
+    const overlay = this.$('#overlay');
+    if (overlay) overlay.innerHTML = this._addOpen ? this._altaTpl : '';
+    this._wireOverlayDialogs();
+  }
+
+  /** Abre/cierra el modal-dialog de alta y cablea su evento `close`. */
+  _wireOverlayDialogs() {
+    const addDialog = this.$('#add-dialog');
+    if (addDialog) {
+      addDialog.heading = t('inv.add.title');
+      this.on(addDialog, 'close', () => { this._addOpen = false; this._paintOverlay(); });
+      if (this._addOpen) addDialog.open();
+    }
+  }
+
+  /** @param {'tarjetas'|'lista'} view */
+  _setView(view) {
+    if (this._view === view) return;
+    this._view = view;
+    const tarjetas = this.$('#v-tarjetas');
+    const lista = this.$('#v-lista');
+    if (tarjetas) tarjetas.setAttribute('aria-selected', String(view === 'tarjetas'));
+    if (lista) lista.setAttribute('aria-selected', String(view === 'lista'));
+    this._apply();
+  }
+
+  /** @param {MouseEvent} e */
+  _onListClick(e) {
+    const rm = e.target.closest('[data-remove]');
+    if (rm) { this._removeInvitado(rm.dataset.remove); return; }
+    const next = e.target.closest('[data-nextinv]');
+    if (next) { this._cicloInvitacion(next.dataset.nextinv); return; }
+    const conf = e.target.closest('[data-conf]');
+    if (conf) this._setRsvp(conf.dataset.conf, conf.dataset.set);
+  }
+
+  /** @param {Event} e */
+  _onListChange(e) {
+    const rsvpSel = e.target.closest('[data-rsvp]');
+    if (rsvpSel) { this._setRsvp(rsvpSel.dataset.rsvp, rsvpSel.value); return; }
+    const mesaSel = e.target.closest('[data-mesa]');
+    if (mesaSel) this._setMesa(mesaSel.dataset.mesa, mesaSel.value);
+  }
+
+  /** @param {MouseEvent} e */
+  _onOverlayClick(e) {
+    if (e.target.closest('#add-save')) this._saveDraft();
+  }
+
+  /** @param {Event} e */
+  _onOverlayChange(e) {
+    if (String(e.target.id).startsWith('add-')) this._updateDraftField(e.target);
+  }
+
+  /** @param {Event} e */
+  _onOverlayInput(e) {
+    if (String(e.target.id).startsWith('add-')) this._updateDraftField(e.target);
+  }
+
+  // ---------- Acciones sobre la lista ----------
+
+  /**
+   * @param {string} id
+   * @param {string} rsvp
+   */
+  _setRsvp(id, rsvp) {
+    const g = this._invitados.find((x) => x.id === id);
+    if (!g) return;
+    this._syncInvitado(invitadosRepo.upsert({ ...g, rsvp }));
+    this._apply();
+  }
+
+  /**
+   * @param {string} id
+   * @param {string} mesaId
+   */
+  _setMesa(id, mesaId) {
+    const g = this._invitados.find((x) => x.id === id);
+    if (!g) return;
+    this._syncInvitado(invitadosRepo.upsert({ ...g, mesa: mesaId || null }));
+    this._apply();
+  }
+
+  /** @param {string} id */
+  _cicloInvitacion(id) {
+    const g = this._invitados.find((x) => x.id === id);
+    if (!g) return;
+    const invitacion = siguienteInvitacion(g.invitacion);
+    this._syncInvitado(invitadosRepo.upsert({ ...g, invitacion }));
+    this._apply();
+  }
+
+  /** @param {string} id */
+  _removeInvitado(id) {
+    const g = this._invitados.find((x) => x.id === id);
+    if (!g) return;
+    invitadosRepo.remove(id);
+    this._invitados = this._invitados.filter((x) => x.id !== id);
+    this._toast('inv.toast.quitado', { nombre: g.nombre });
+    this._apply();
+  }
+
+  /**
+   * Sustituye (o añade) un invitado en la copia local tras persistirlo.
+   * @param {object} updated
+   */
+  _syncInvitado(updated) {
+    const idx = this._invitados.findIndex((x) => x.id === updated.id);
+    if (idx >= 0) this._invitados[idx] = updated;
+    else this._invitados.push(updated);
+  }
+
+  // ---------- Alta de invitado ----------
+
+  _openAdd() {
+    this._draft = draftVacio();
+    this._addOpen = true;
+    this._paintOverlay();
+  }
+
+  /** @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} el */
+  _updateDraftField(el) {
+    const map = {
+      'add-nombre': 'nombre', 'add-lado': 'lado', 'add-grupo': 'grupo', 'add-acomp': 'acomp',
+      'add-menu': 'menu', 'add-invitacion': 'invitacion', 'add-rsvp': 'rsvp', 'add-nota': 'nota',
+    };
+    const key = map[el.id];
+    if (key) this._draft[key] = el.value;
+  }
+
+  _saveDraft() {
+    const d = this._draft;
+    const nombre = (d.nombre || '').trim();
+    if (!nombre) { this._toast('inv.add.needName'); return; }
+    const acomp = parseAcomp(d.acomp);
+    const created = invitadosRepo.upsert({
+      nombre,
+      lado: d.lado,
+      grupo: d.grupo,
+      rsvp: d.rsvp,
+      plus: acomp.length,
+      acompanantes: acomp,
+      menu: d.menu,
+      invitacion: d.invitacion,
+      nota: (d.nota || '').trim(),
+    });
+    this._invitados.unshift(created);
+    this._addOpen = false;
+    this._toast('inv.toast.creado', { nombre: created.nombre });
+    this._apply();
+    this._paintOverlay();
+  }
+
+  // ---------- Toast ----------
+
+  /**
+   * Muestra un aviso breve reutilizando el primitivo app-toast.
+   * @param {string} key Clave i18n.
+   * @param {Record<string, string|number>} [vars]
+   */
+  _toast(key, vars) {
+    const el = this.$('#toast');
+    if (el && typeof el.show === 'function') el.show(t(key, vars));
+  }
+}
+
+customElements.define('invitados-view', InvitadosView);
