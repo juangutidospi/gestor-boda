@@ -83,9 +83,15 @@ export const styles = css`
   border: 2px solid var(--color-surface); background: var(--color-neutral-600);
   transition: background .2s ease;
 }
-.inv-card[data-rsvp="confirmado"] .inv-avatar-status { background: var(--rsvp-si-dot); }
-.inv-card[data-rsvp="pendiente"] .inv-avatar-status { background: var(--rsvp-pend-dot); }
-.inv-card[data-rsvp="no"] .inv-avatar-status { background: var(--rsvp-no-dot); }
+.inv-card[data-rsvp="confirmado"] .inv-avatar-status,
+.inv-table tr[data-rsvp="confirmado"] .inv-avatar-status { background: var(--rsvp-si-dot); }
+.inv-card[data-rsvp="pendiente"] .inv-avatar-status,
+.inv-table tr[data-rsvp="pendiente"] .inv-avatar-status { background: var(--rsvp-pend-dot); }
+.inv-card[data-rsvp="no"] .inv-avatar-status,
+.inv-table tr[data-rsvp="no"] .inv-avatar-status { background: var(--rsvp-no-dot); }
+/* Avatar pequeño para el listado. */
+.inv-avatar-sm { width: 32px; height: 32px; font-size: 12px; }
+.inv-avatar-sm .inv-avatar-status { width: 10px; height: 10px; }
 
 .inv-card-nombre { font-family: var(--font-heading); font-weight: 600; font-size: 20px; line-height: 1.15;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -160,8 +166,13 @@ table.inv-table { width: 100%; min-width: 820px; border-collapse: collapse; font
 .inv-table tbody td:last-child { padding-right: var(--space-3); }
 .inv-table tbody tr:nth-child(even) { background: var(--color-neutral-100); }
 .inv-table tbody tr:hover { background: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+.inv-table tbody tr[data-rsvp="no"] { opacity: .72; }
+.inv-table tbody tr[data-rsvp="no"]:hover { opacity: 1; }
+.inv-table-who { display: flex; align-items: center; gap: 10px; }
+.inv-table-id { min-width: 0; display: flex; flex-direction: column; }
 .inv-table-nombre { font-family: var(--font-heading); font-weight: 600; font-size: 15px; }
 .inv-table-meta { font-size: 11px; }
+.inv-table-num { font-variant-numeric: tabular-nums; }
 .inv-table select { padding: 6px 10px; font-size: 12px; min-height: 34px; }
 
 /* ---------- Vacío y pie ---------- */

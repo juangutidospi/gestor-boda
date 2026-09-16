@@ -332,17 +332,27 @@ export class InvitadosView extends AppElement {
     const lado = ladoTokens(g.lado);
     const plus = Number(g.plus) || 0;
     const meta = g.nota ? g.nota : (plus ? t('inv.meta.acomp') : t('inv.meta.individual'));
-    const invLabel = t(ENUMS.invInvitacion[g.invitacion || 'sin enviar']);
+    const invEstado = g.invitacion || 'sin enviar';
+    const invLabel = t(ENUMS.invInvitacion[invEstado]);
+    const menuEspecial = g.menu && g.menu !== 'Estándar';
     const mesaNombre = this._mesas.find((m) => m.id === g.mesa)?.nombre || t('inv.card.sinMesa');
     const plusCorto = plus ? `+${plus}` : '—';
     return `
-      <tr data-id="${escapeHtml(g.id)}">
-        <td><div class="inv-table-nombre">${escapeHtml(g.nombre)}</div><div class="inv-table-meta muted">${escapeHtml(meta)}</div></td>
+      <tr data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}">
+        <td>
+          <div class="inv-table-who">
+            <span class="inv-avatar inv-avatar-sm" style="background:${lado.bg};color:${lado.ink};--card-lado:${lado.color}" aria-hidden="true">${escapeHtml(iniciales(g.nombre))}<span class="inv-avatar-status"></span></span>
+            <span class="inv-table-id">
+              <span class="inv-table-nombre">${escapeHtml(g.nombre)}</span>
+              <span class="inv-table-meta muted">${escapeHtml(meta)}</span>
+            </span>
+          </div>
+        </td>
         <td><span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${ladoIcon(g.lado)}${escapeHtml(lado.label)}</span></td>
         <td>${escapeHtml(g.grupo)}</td>
-        <td>${escapeHtml(g.menu || 'Estándar')}</td>
-        <td>${escapeHtml(invLabel)}</td>
-        <td>${escapeHtml(plusCorto)}</td>
+        <td>${menuEspecial ? `<span class="tag tag-accent">${icCubiertos()}${escapeHtml(g.menu)}</span>` : `<span class="muted">${escapeHtml(g.menu || 'Estándar')}</span>`}</td>
+        <td><span class="inv-inv-state">${icSobre()}${escapeHtml(invLabel)}</span></td>
+        <td class="inv-table-num">${escapeHtml(plusCorto)}</td>
         <td>${escapeHtml(mesaNombre)}</td>
         <td>
           <select class="input" data-rsvp="${escapeHtml(g.id)}">
