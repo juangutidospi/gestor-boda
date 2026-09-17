@@ -80,6 +80,31 @@ export const styles = css`
 /* ---------- Rejilla y tarjeta de invitado ---------- */
 .inv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding-top: var(--space-3); }
 
+/* Barra de confirmación por círculo (en la cabecera del grupo). */
+.inv-grupo-bar { flex: none; width: 84px; height: 5px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--color-text) 10%, transparent); }
+.inv-grupo-bar i { display: block; height: 100%; border-radius: 999px; background: var(--rsvp-si-dot);
+  transition: width .8s cubic-bezier(.22,.61,.36,1); }
+
+/* Entrada escalonada de tarjetas (one-shot al abrir/refrescar la lista). */
+@keyframes invRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.inv-stagger .inv-card { animation: invRise .45s cubic-bezier(.22,.61,.36,1) both; animation-delay: calc(var(--i, 0) * 32ms); }
+
+/* Flash al cambiar la confirmación de una tarjeta. */
+@keyframes invFlash {
+  0% { box-shadow: var(--shadow-sm), inset 0 0 0 2px color-mix(in srgb, var(--card-lado) 60%, transparent); }
+  100% { box-shadow: var(--shadow-sm); }
+}
+.inv-card.inv-flash { animation: invFlash .6s ease-out; }
+.inv-card.inv-flash .inv-avatar-status { animation: invPulse .6s ease-out; }
+@keyframes invPulse { 0% { transform: scale(1); } 45% { transform: scale(1.55); } 100% { transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-grupo-bar i { transition: none; }
+  .inv-stagger .inv-card { animation: none; }
+  .inv-card.inv-flash, .inv-card.inv-flash .inv-avatar-status { animation: none; }
+}
+
 .inv-card {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; gap: 10px;

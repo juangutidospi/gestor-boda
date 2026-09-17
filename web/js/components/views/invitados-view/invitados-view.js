@@ -124,7 +124,6 @@ export class InvitadosView extends AppElement {
         <div class="page-head">
           <span class="eyebrow">${escapeHtml(t('nav.invitados'))}</span>
           <h1>${escapeHtml(t('inv.title'))}</h1>
-          <p class="muted">${escapeHtml(t('inv.subtitle'))}</p>
         </div>
         <div id="hero">${this._heroTpl}</div>
         <div id="stats">${this._statsTpl}</div>
@@ -295,19 +294,24 @@ export class InvitadosView extends AppElement {
    */
   _gruposTpl(lista) {
     const grupos = agrupar(lista);
-    return grupos.map((gr) => `
+    let idx = 0;
+    return grupos.map((gr) => {
+      const pctConf = gr.inv ? Math.round((gr.conf / gr.inv) * 100) : 0;
+      return `
       <div class="inv-grupo-head">
         <h3>${escapeHtml(gr.titulo)}</h3>
         <span class="inv-grupo-sub">${escapeHtml(t('inv.grupo.subtotal', { inv: gr.inv, pax: gr.pax, conf: gr.conf }))}</span>
+        <span class="inv-grupo-bar" title="${pctConf}%"><i style="width:${pctConf}%"></i></span>
       </div>
-      <section class="inv-grid">${gr.items.map((g) => this._cardTpl(g)).join('')}</section>`).join('');
+      <section class="inv-grid">${gr.items.map((g) => this._cardTpl(g, idx++)).join('')}</section>`;
+    }).join('');
   }
 
   /**
    * @param {object} g
    * @returns {string} Una tarjeta de invitado.
    */
-  _cardTpl(g) {
+  _cardTpl(g, idx = 0) {
     const lado = ladoTokens(g.lado);
     const plus = Number(g.plus) || 0;
     const meta = g.nota ? g.nota : (plus ? t('inv.meta.acomp') : t('inv.meta.individual'));
@@ -319,7 +323,7 @@ export class InvitadosView extends AppElement {
     const acompLinea = acompanantes.length ? acompanantes.join(' · ') : (plus ? t('inv.acomp.sinNombre', { n: plus }) : '');
     const mesaId = g.mesa || '';
     return `
-      <article class="inv-card" data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}" style="--card-lado:${lado.color}">
+      <article class="inv-card" data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}" style="--card-lado:${lado.color};--i:${idx}">
         <div class="inv-card-top">
           <span class="inv-avatar" style="background:${lado.bg};color:${lado.ink}" aria-hidden="true">
             ${escapeHtml(iniciales(g.nombre))}
@@ -509,6 +513,9 @@ export class InvitadosView extends AppElement {
 
     this._wireOverlayDialogs();
     this._animateHero();
+    // Entrada escalonada de las tarjetas (one-shot: no se repite al filtrar).
+    const list = this.$('#list');
+    if (list) { list.classList.add('inv-stagger'); setTimeout(() => list.classList.remove('inv-stagger'), 900); }
   }
 
   /**
@@ -544,13 +551,21 @@ export class InvitadosView extends AppElement {
    * Re-renderiza solo stats/lista/vacío para que la búsqueda no pierda el
    * foco del input (la barra de filtros nunca se vuelve a pintar entera).
    */
-  _apply() {
+  _apply(refreshHero = false, flashId = null) {
     const stats = this.$('#stats');
     if (stats) stats.innerHTML = this._statsTpl;
     const list = this.$('#list');
     if (list) list.innerHTML = this._listTpl;
     const empty = this.$('#empty');
     if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
+    if (refreshHero) {
+      const hero = this.$('#hero');
+      if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
+    }
+    if (flashId) {
+      const card = this.$(`.inv-card[data-id="${flashId}"]`);
+      if (card) { card.classList.add('inv-flash'); setTimeout(() => card.classList.remove('inv-flash'), 620); }
+    }
   }
 
   /** Repinta solo el overlay (alta) y recablea su diálogo. */
@@ -624,7 +639,7 @@ export class InvitadosView extends AppElement {
     const g = this._invitados.find((x) => x.id === id);
     if (!g) return;
     this._syncInvitado(invitadosRepo.upsert({ ...g, rsvp }));
-    this._apply();
+    this._apply(true, id);
   }
 
   /**
@@ -635,7 +650,7 @@ export class InvitadosView extends AppElement {
     const g = this._invitados.find((x) => x.id === id);
     if (!g) return;
     this._syncInvitado(invitadosRepo.upsert({ ...g, mesa: mesaId || null }));
-    this._apply();
+    this._apply(true);
   }
 
   /** @param {string} id */
@@ -644,7 +659,7 @@ export class InvitadosView extends AppElement {
     if (!g) return;
     const invitacion = siguienteInvitacion(g.invitacion);
     this._syncInvitado(invitadosRepo.upsert({ ...g, invitacion }));
-    this._apply();
+    this._apply(true, id);
   }
 
   /** @param {string} id */
@@ -654,7 +669,7 @@ export class InvitadosView extends AppElement {
     invitadosRepo.remove(id);
     this._invitados = this._invitados.filter((x) => x.id !== id);
     this._toast('inv.toast.quitado', { nombre: g.nombre });
-    this._apply();
+    this._apply(true);
   }
 
   /**
@@ -704,7 +719,7 @@ export class InvitadosView extends AppElement {
     this._invitados.unshift(created);
     this._addOpen = false;
     this._toast('inv.toast.creado', { nombre: created.nombre });
-    this._apply();
+    this._apply(true);
     this._paintOverlay();
   }
 
