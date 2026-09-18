@@ -315,7 +315,7 @@ export class InvitadosView extends AppElement {
     return grupos.map((gr) => {
       const pctConf = gr.inv ? Math.round((gr.conf / gr.inv) * 100) : 0;
       return `
-      <div class="inv-grupo-head">
+      <div class="inv-grupo-head" data-grupo="${escapeHtml(gr.titulo)}">
         <h3>${escapeHtml(gr.titulo)}</h3>
         <span class="inv-grupo-sub">${escapeHtml(t('inv.grupo.subtotal', { inv: gr.inv, pax: gr.pax, conf: gr.conf }))}</span>
         <span class="inv-grupo-bar" title="${pctConf}%"><i style="width:${pctConf}%"></i></span>
@@ -511,11 +511,11 @@ export class InvitadosView extends AppElement {
 
   afterRender() {
     this.on(this.$('#f-q'), 'input', (e) => { this._q = e.target.value; this._apply(); });
-    this.on(this.$('#f-lado'), 'change', (e) => { this._lado = e.target.value; this._apply(); });
-    this.on(this.$('#f-grupo'), 'change', (e) => { this._grupo = e.target.value; this._apply(); });
-    this.on(this.$('#f-rsvp'), 'change', (e) => { this._rsvp = e.target.value; this._apply(); });
-    this.on(this.$('#f-inv'), 'change', (e) => { this._inv = e.target.value; this._apply(); });
-    this.on(this.$('#f-menu'), 'change', (e) => { this._menu = e.target.value; this._apply(); });
+    this.on(this.$('#f-lado'), 'change', (e) => { this._lado = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#f-grupo'), 'change', (e) => { this._grupo = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#f-rsvp'), 'change', (e) => { this._rsvp = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#f-inv'), 'change', (e) => { this._inv = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#f-menu'), 'change', (e) => { this._menu = e.target.value; this._apply(false, null, true); });
     this.on(this.$('#v-tarjetas'), 'click', () => this._setView('tarjetas'));
     this.on(this.$('#v-lista'), 'click', () => this._setView('lista'));
     this.on(this.$('#add-open'), 'click', () => this._openAdd());
@@ -531,9 +531,19 @@ export class InvitadosView extends AppElement {
 
     this._wireOverlayDialogs();
     this._animateHero();
-    // Entrada escalonada de las tarjetas (one-shot: no se repite al filtrar).
+    this._playStagger();
+  }
+
+  /** Reproduce (una vez) la entrada escalonada de las tarjetas de la lista. */
+  _playStagger() {
     const list = this.$('#list');
-    if (list) { list.classList.add('inv-stagger'); setTimeout(() => list.classList.remove('inv-stagger'), 900); }
+    if (!list) return;
+    list.classList.remove('inv-stagger');
+    // reflow para reiniciar la animación aunque la clase ya estuviera puesta
+    void list.offsetWidth;
+    list.classList.add('inv-stagger');
+    clearTimeout(this._staggerT);
+    this._staggerT = setTimeout(() => list.classList.remove('inv-stagger'), 1200);
   }
 
   /**
@@ -569,7 +579,7 @@ export class InvitadosView extends AppElement {
    * Re-renderiza solo stats/lista/vacío para que la búsqueda no pierda el
    * foco del input (la barra de filtros nunca se vuelve a pintar entera).
    */
-  _apply(refreshHero = false, flashId = null) {
+  _apply(refreshHero = false, flashId = null, stagger = false) {
     const stats = this.$('#stats');
     if (stats) stats.innerHTML = this._statsTpl;
     const list = this.$('#list');
@@ -578,6 +588,7 @@ export class InvitadosView extends AppElement {
     if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
     const chips = this.$('#chips');
     if (chips) chips.innerHTML = this._chipsTpl;
+    if (stagger) this._playStagger();
     if (refreshHero) {
       const hero = this.$('#hero');
       if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
@@ -586,6 +597,46 @@ export class InvitadosView extends AppElement {
       const card = this.$(`.inv-card[data-id="${flashId}"]`);
       if (card) { card.classList.add('inv-flash'); setTimeout(() => card.classList.remove('inv-flash'), 620); }
     }
+  }
+
+  /**
+   * Actualiza SOLO la tarjeta indicada en el sitio (sin repintar toda la lista)
+   * y le hace flash + pulse; refresca hero, stats y la barra de su círculo. Así
+   * el feedback al confirmar se percibe nítido. Cae a `_apply` completo si la
+   * tarjeta no está en el DOM (p. ej. modo listado).
+   * @param {string} id
+   */
+  _flashCardUpdate(id) {
+    const card = this.$(`.inv-card[data-id="${id}"]`);
+    const g = this._invitados.find((x) => x.id === id);
+    if (!card || !g) { this._apply(true, id); return; }
+    const idx = Number(card.style.getPropertyValue('--i')) || 0;
+    card.outerHTML = this._cardTpl(g, idx);
+    const fresh = this.$(`.inv-card[data-id="${id}"]`);
+    if (fresh) { fresh.classList.add('inv-flash'); setTimeout(() => fresh.classList.remove('inv-flash'), 620); }
+    const hero = this.$('#hero');
+    if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
+    const stats = this.$('#stats');
+    if (stats) stats.innerHTML = this._statsTpl;
+    this._refreshGrupoBar(g.grupo);
+  }
+
+  /**
+   * Recalcula la barra de confirmación y el subtotal de un círculo tras un
+   * cambio, sobre los invitados actualmente visibles.
+   * @param {string} grupo
+   */
+  _refreshGrupoBar(grupo) {
+    const head = this.$(`.inv-grupo-head[data-grupo="${grupo}"]`);
+    if (!head) return;
+    const items = this._visible.filter((x) => x.grupo === grupo);
+    const conf = items.filter((x) => x.rsvp === 'confirmado').length;
+    const pax = items.reduce((a, x) => a + 1 + (Number(x.plus) || 0), 0);
+    const pct = items.length ? Math.round((conf / items.length) * 100) : 0;
+    const bar = head.querySelector('.inv-grupo-bar i');
+    if (bar) bar.style.width = `${pct}%`;
+    const sub = head.querySelector('.inv-grupo-sub');
+    if (sub) sub.textContent = t('inv.grupo.subtotal', { inv: items.length, pax, conf });
   }
 
   /** Repinta solo el overlay (alta) y recablea su diálogo. */
@@ -613,7 +664,7 @@ export class InvitadosView extends AppElement {
     const lista = this.$('#v-lista');
     if (tarjetas) tarjetas.setAttribute('aria-selected', String(view === 'tarjetas'));
     if (lista) lista.setAttribute('aria-selected', String(view === 'lista'));
-    this._apply();
+    this._apply(false, null, true);
   }
 
   /** @param {MouseEvent} e */
@@ -655,7 +706,7 @@ export class InvitadosView extends AppElement {
     };
     if (k === 'all') Object.keys(defs).forEach(one);
     else if (k in defs) one(k);
-    this._apply();
+    this._apply(false, null, true);
   }
 
   /** @param {MouseEvent} e */
@@ -683,7 +734,9 @@ export class InvitadosView extends AppElement {
     const g = this._invitados.find((x) => x.id === id);
     if (!g) return;
     this._syncInvitado(invitadosRepo.upsert({ ...g, rsvp }));
-    this._apply(true, id);
+    // Si hay filtro de confirmación, la tarjeta puede descolgarse: repintado completo.
+    if (this._rsvp !== 'Todos' || this._view === 'lista') this._apply(true, id);
+    else this._flashCardUpdate(id);
   }
 
   /**
@@ -703,7 +756,8 @@ export class InvitadosView extends AppElement {
     if (!g) return;
     const invitacion = siguienteInvitacion(g.invitacion);
     this._syncInvitado(invitadosRepo.upsert({ ...g, invitacion }));
-    this._apply(true, id);
+    if (this._inv !== 'Todas' || this._view === 'lista') this._apply(true, id);
+    else this._flashCardUpdate(id);
   }
 
   /** @param {string} id */
