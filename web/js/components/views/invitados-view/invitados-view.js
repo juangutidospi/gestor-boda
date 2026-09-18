@@ -172,7 +172,7 @@ export class InvitadosView extends AppElement {
     const conf = inv.filter((g) => g.rsvp === 'confirmado').length;
     const pend = inv.filter((g) => g.rsvp === 'pendiente').length;
     const no = inv.filter((g) => g.rsvp === 'no').length;
-    const pax = inv.reduce((a, g) => a + 1 + (Number(g.plus) || 0), 0);
+    const paxTotal = inv.reduce((a, g) => a + 1 + (Number(g.plus) || 0), 0);
     const aforo = this._elegida ? this._elegida.capSent : 0;
     const pctConf = total ? Math.round((conf / total) * 100) : 0;
     const R = 54;
@@ -181,12 +181,12 @@ export class InvitadosView extends AppElement {
     const seg = (n) => (n / base) * C;
     const arc = (len, startFrac, cls) => `<circle class="inv-donut-arc ${cls}" cx="64" cy="64" r="${R}" fill="none" stroke-width="14" stroke-linecap="round"
       style="stroke-dasharray:${len.toFixed(1)} ${C.toFixed(1)};stroke-dashoffset:${len.toFixed(1)};transform:rotate(${(-90 + startFrac * 360).toFixed(2)}deg)"></circle>`;
-    const capPct = aforo ? Math.min(100, Math.round((pax / aforo) * 100)) : 0;
+    const capPct = aforo ? Math.min(100, Math.round((paxTotal / aforo) * 100)) : 0;
     const meter = aforo
       ? `<div class="inv-meter-bar"><span class="inv-meter-fill" style="width:0" data-w="${capPct}"></span></div>
-         <div class="inv-meter-cap muted"><b>${pax}</b> / ${aforo} · ${escapeHtml(this._elegida.nombre)}</div>`
+         <div class="inv-meter-cap muted"><b>${paxTotal}</b> / ${aforo} · ${escapeHtml(this._elegida.nombre)}</div>`
       : `<div class="inv-meter-bar inv-meter-empty"></div>
-         <div class="inv-meter-cap muted"><b>${pax}</b> ${escapeHtml(t('inv.stat.lado.note'))} · ${escapeHtml(t('inv.stat.aforo.note.sin'))}</div>`;
+         <div class="inv-meter-cap muted"><b>${paxTotal}</b> ${escapeHtml(t('inv.stat.lado.note'))} · ${escapeHtml(t('inv.stat.aforo.note.sin'))}</div>`;
     return `
       <section class="inv-hero">
         <div class="inv-hero-ring">
@@ -478,7 +478,7 @@ export class InvitadosView extends AppElement {
           </div>
           <div class="field inv-add-span2">
             <label>${escapeHtml(t('inv.add.acomp'))}</label>
-            <textarea class="input" id="add-acomp" rows="2" placeholder="${escapeHtml(t('inv.add.nombre.ph'))}">${escapeHtml(d.acomp)}</textarea>
+            <textarea class="input" id="add-acomp" rows="2" placeholder="${escapeHtml(t('inv.add.acomp.ph'))}">${escapeHtml(d.acomp)}</textarea>
           </div>
           <div class="field">
             <label>${escapeHtml(t('inv.add.menu'))}</label>
@@ -694,7 +694,7 @@ export class InvitadosView extends AppElement {
     const g = this._invitados.find((x) => x.id === id);
     if (!g) return;
     this._syncInvitado(invitadosRepo.upsert({ ...g, mesa: mesaId || null }));
-    this._apply(true);
+    this._apply(false);
   }
 
   /** @param {string} id */

@@ -140,7 +140,6 @@ export default {
   'finca.compare.crit': 'Criterio',
   // Vista Invitados
   'inv.title': 'Invitados',
-  'inv.subtitle': 'Lista por lado y círculo. Los totales de cada lado se recalculan con cada alta.',
   'inv.search': 'Buscar invitado',
   'inv.search.ph': 'Nombre o nota…',
   'inv.filter.lado': 'Lado',
@@ -207,6 +206,7 @@ export default {
   'inv.add.lado': '¿De qué lado viene?',
   'inv.add.circulo': 'Círculo',
   'inv.add.acomp': 'Acompañantes (un nombre por línea)',
+  'inv.add.acomp.ph': 'Ej. Javier Soler\nMarta (hija)',
   'inv.add.menu': 'Menú',
   'inv.add.invitacion': 'Invitación',
   'inv.add.rsvp': 'Confirmación',

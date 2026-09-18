@@ -69,7 +69,7 @@ export const styles = css`
 
 /* ---------- Chips de filtros activos ---------- */
 #chips:empty { display: none; }
-.inv-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; animation: invRise .3s ease both; }
+.inv-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .inv-chip {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
   padding: 5px 10px; border-radius: 999px; font-size: 12px; color: var(--color-text);

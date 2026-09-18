@@ -140,7 +140,6 @@ export default {
   'finca.compare.crit': 'Criterion',
   // Guests view
   'inv.title': 'Guests',
-  'inv.subtitle': "By side and circle. Each side's totals recalculate with every addition.",
   'inv.search': 'Search guest',
   'inv.search.ph': 'Name or note…',
   'inv.filter.lado': 'Side',
@@ -207,6 +206,7 @@ export default {
   'inv.add.lado': 'Which side?',
   'inv.add.circulo': 'Circle',
   'inv.add.acomp': 'Companions (one name per line)',
+  'inv.add.acomp.ph': 'e.g. Javier Soler\nMarta (daughter)',
   'inv.add.menu': 'Menu',
   'inv.add.invitacion': 'Invitation',
   'inv.add.rsvp': 'RSVP',
