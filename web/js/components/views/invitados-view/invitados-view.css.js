@@ -88,6 +88,47 @@ export const styles = css`
 }
 .inv-chip-clear:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
 
+/* ---------- Selección múltiple ---------- */
+:host { position: relative; }
+.inv-card-sel { position: absolute; top: 10px; left: 10px; z-index: 2; opacity: 0; transition: opacity .15s ease; }
+.inv-card:hover .inv-card-sel, .inv-card[data-sel-on] .inv-card-sel, .inv-card:focus-within .inv-card-sel { opacity: 1; }
+.inv-card-sel input { width: 17px; height: 17px; accent-color: var(--color-accent); cursor: pointer; }
+.inv-card[data-sel-on] { border-color: var(--color-accent); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--color-accent); }
+.inv-card:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* ---------- Insights accionables ---------- */
+#insights:empty { display: none; }
+.inv-insights { display: flex; flex-wrap: wrap; gap: 8px; }
+.inv-insight { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 6px 12px; border-radius: 999px; font-size: 12.5px; color: var(--color-text);
+  background: var(--color-surface); border: 1px solid var(--color-divider);
+  transition: border-color .15s ease, background .15s ease; }
+.inv-insight:hover { border-color: var(--color-accent-300); background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)); }
+.inv-insight:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.inv-insight .inv-row-ic { opacity: .8; }
+
+/* ---------- Barra de acciones en lote (flotante) ---------- */
+#bulkbar:empty { display: none; }
+.inv-bulk { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 110;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px 8px 16px;
+  background: var(--color-text); border-radius: 999px; box-shadow: var(--shadow-lg); animation: bulkRise .2s ease; }
+.inv-bulk-count { color: var(--color-surface); font-size: 13px; font-weight: 600; margin-right: 4px; }
+.inv-bulk .btn { min-height: 34px; color: var(--color-surface); border-color: color-mix(in srgb, var(--color-surface) 30%, transparent); background: transparent; }
+.inv-bulk .btn:hover { background: color-mix(in srgb, var(--color-surface) 16%, transparent); }
+.inv-bulk .btn-ghost { border-color: transparent; opacity: .85; }
+@keyframes bulkRise { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ---------- Confeti de celebración (sobre el donut) ---------- */
+#confetti { position: absolute; left: 88px; top: 258px; width: 0; height: 0; z-index: 40; pointer-events: none; }
+.inv-confetti-bit { position: absolute; width: 8px; height: 8px; border-radius: 2px;
+  animation: invConfetti 1.2s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes invConfetti { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-bulk { animation: none; }
+  .inv-confetti-bit { animation: none; opacity: 0; }
+}
+
 /* ---------- Encabezado de grupo (círculo) ---------- */
 .inv-grupo-head {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-3);

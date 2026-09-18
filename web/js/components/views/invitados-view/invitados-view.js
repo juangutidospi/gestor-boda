@@ -107,6 +107,33 @@ export class InvitadosView extends AppElement {
   _view = 'tarjetas';
   _addOpen = false;
   _draft = draftVacio();
+  /** @type {Set<string>} Ids seleccionados para acciones en lote. */
+  _selected = new Set();
+  /** Recuerda si ya estaba todo confirmado (para no repetir la celebración). */
+  _wasComplete = false;
+
+  /** Registra los atajos de teclado UNA sola vez (no en afterRender). */
+  connectedCallback() {
+    super.connectedCallback();
+    this.on(window, 'keydown', this._onKey);
+  }
+
+  /**
+   * Atajos: "/" enfoca el buscador; con una tarjeta enfocada, c/p/n fija la
+   * confirmación (confirmado/pendiente/no). Solo actúa si la vista es visible.
+   * @param {KeyboardEvent} e
+   */
+  _onKey = (e) => {
+    if (this.offsetParent === null) return;
+    const active = this.shadowRoot.activeElement;
+    const typing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
+    if (e.key === '/' && !typing) { e.preventDefault(); this.$('#f-q')?.focus(); return; }
+    const card = active?.closest?.('.inv-card');
+    if (card && !typing) {
+      const rsvp = { c: 'confirmado', p: 'pendiente', n: 'no' }[e.key.toLowerCase()];
+      if (rsvp) { e.preventDefault(); this._setRsvp(card.dataset.id, rsvp); }
+    }
+  };
 
   /** Público: lo llama el router al abrir la vista. */
   refresh() {
@@ -126,6 +153,7 @@ export class InvitadosView extends AppElement {
           <h1>${escapeHtml(t('inv.title'))}</h1>
         </div>
         <div id="hero">${this._heroTpl}</div>
+        <div id="insights">${this._insightsTpl}</div>
         <div id="stats">${this._statsTpl}</div>
         ${this._filtrosTpl}
         <div id="chips">${this._chipsTpl}</div>
@@ -133,6 +161,8 @@ export class InvitadosView extends AppElement {
         <div id="empty">${visibles.length ? '' : this._emptyTpl}</div>
         <p class="inv-foot muted">${escapeHtml(this._footTxt)}</p>
         <div id="overlay">${this._addOpen ? this._altaTpl : ''}</div>
+        <div id="bulkbar">${this._bulkbarTpl}</div>
+        <div id="confetti" aria-hidden="true"></div>
         <app-toast id="toast"></app-toast>
       </div>`;
   }
@@ -291,6 +321,34 @@ export class InvitadosView extends AppElement {
     </div>`;
   }
 
+  /** @returns {string} Chips de insight accionables (cada uno aplica un filtro). */
+  get _insightsTpl() {
+    const inv = this._invitados;
+    const sinEnviar = inv.filter((g) => (g.invitacion || 'sin enviar') === 'sin enviar').length;
+    const pend = inv.filter((g) => g.rsvp === 'pendiente').length;
+    const esp = inv.filter((g) => g.menu && g.menu !== 'Estándar').length;
+    const items = [];
+    if (sinEnviar) items.push({ k: 'sinEnviar', ic: icSobre(), txt: t('inv.insight.sinEnviar', { n: sinEnviar }) });
+    if (pend) items.push({ k: 'pendientes', ic: '', txt: t('inv.insight.pendientes', { n: pend }) });
+    if (esp) items.push({ k: 'especiales', ic: icCubiertos(), txt: t('inv.insight.especiales', { n: esp }) });
+    if (!items.length) return '';
+    return `<div class="inv-insights">${items.map((i) => `<button type="button" class="inv-insight" data-insight="${i.k}">${i.ic}${escapeHtml(i.txt)}</button>`).join('')}</div>`;
+  }
+
+  /** @returns {string} Barra flotante de acciones en lote (vacía si no hay selección). */
+  get _bulkbarTpl() {
+    const n = this._selected.size;
+    if (!n) return '';
+    return `<div class="inv-bulk" role="toolbar">
+      <span class="inv-bulk-count">${escapeHtml(t('inv.bulk.sel', { n }))}</span>
+      <button class="btn" data-bulk="confirmado" type="button">${escapeHtml(t('inv.bulk.confirmar'))}</button>
+      <button class="btn" data-bulk="pendiente" type="button">${escapeHtml(t('inv.bulk.pendiente'))}</button>
+      <button class="btn" data-bulk="no" type="button">${escapeHtml(t('inv.bulk.no'))}</button>
+      <button class="btn" data-bulk="remove" type="button">${escapeHtml(t('inv.bulk.quitar'))}</button>
+      <button class="btn btn-ghost" data-bulk="clear" type="button">${escapeHtml(t('inv.bulk.limpiar'))}</button>
+    </div>`;
+  }
+
   /** @returns {object[]} Invitados filtrados según el estado actual. */
   get _visible() {
     return filtrar(this._invitados, {
@@ -340,7 +398,8 @@ export class InvitadosView extends AppElement {
     const acompLinea = acompanantes.length ? acompanantes.join(' · ') : (plus ? t('inv.acomp.sinNombre', { n: plus }) : '');
     const mesaId = g.mesa || '';
     return `
-      <article class="inv-card" data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}" style="--card-lado:${lado.color};--i:${idx}">
+      <article class="inv-card" tabindex="0" data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}"${this._selected.has(g.id) ? ' data-sel-on' : ''} style="--card-lado:${lado.color};--i:${idx}">
+        <label class="inv-card-sel"><input type="checkbox" data-sel="${escapeHtml(g.id)}"${this._selected.has(g.id) ? ' checked' : ''} aria-label="Seleccionar"></label>
         <div class="inv-card-top">
           <span class="inv-avatar" style="background:${lado.bg};color:${lado.ink}" aria-hidden="true">
             ${escapeHtml(iniciales(g.nombre))}
@@ -522,6 +581,8 @@ export class InvitadosView extends AppElement {
 
     // Contenedores estables: delegación una sola vez por render completo.
     this.on(this.$('#chips'), 'click', (e) => this._onChipsClick(e));
+    this.on(this.$('#insights'), 'click', (e) => this._onInsightsClick(e));
+    this.on(this.$('#bulkbar'), 'click', (e) => this._onBulkClick(e));
     this.on(this.$('#list'), 'click', (e) => this._onListClick(e));
     this.on(this.$('#list'), 'change', (e) => this._onListChange(e));
     this.on(this.$('#empty'), 'click', (e) => { if (e.target.closest('#empty-add')) this._openAdd(); });
@@ -588,10 +649,15 @@ export class InvitadosView extends AppElement {
     if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
     const chips = this.$('#chips');
     if (chips) chips.innerHTML = this._chipsTpl;
+    const bulk = this.$('#bulkbar');
+    if (bulk) bulk.innerHTML = this._bulkbarTpl;
     if (stagger) this._playStagger();
     if (refreshHero) {
       const hero = this.$('#hero');
       if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
+      const insights = this.$('#insights');
+      if (insights) insights.innerHTML = this._insightsTpl;
+      this._maybeCelebrate();
     }
     if (flashId) {
       const card = this.$(`.inv-card[data-id="${flashId}"]`);
@@ -618,7 +684,10 @@ export class InvitadosView extends AppElement {
     if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
     const stats = this.$('#stats');
     if (stats) stats.innerHTML = this._statsTpl;
+    const insights = this.$('#insights');
+    if (insights) insights.innerHTML = this._insightsTpl;
     this._refreshGrupoBar(g.grupo);
+    this._maybeCelebrate();
   }
 
   /**
@@ -679,6 +748,8 @@ export class InvitadosView extends AppElement {
 
   /** @param {Event} e */
   _onListChange(e) {
+    const selBox = e.target.closest('[data-sel]');
+    if (selBox) { this._toggleSelect(selBox.dataset.sel); return; }
     const rsvpSel = e.target.closest('[data-rsvp]');
     if (rsvpSel) { this._setRsvp(rsvpSel.dataset.rsvp, rsvpSel.value); return; }
     const mesaSel = e.target.closest('[data-mesa]');
@@ -707,6 +778,116 @@ export class InvitadosView extends AppElement {
     if (k === 'all') Object.keys(defs).forEach(one);
     else if (k in defs) one(k);
     this._apply(false, null, true);
+  }
+
+  // ---------- Selección múltiple y acciones en lote ----------
+
+  /** @param {string} id */
+  _toggleSelect(id) {
+    if (this._selected.has(id)) this._selected.delete(id);
+    else this._selected.add(id);
+    const card = this.$(`.inv-card[data-id="${id}"]`);
+    if (card) card.toggleAttribute('data-sel-on', this._selected.has(id));
+    const bulk = this.$('#bulkbar');
+    if (bulk) bulk.innerHTML = this._bulkbarTpl;
+  }
+
+  /** Vacía la selección y refleja el cambio en las tarjetas y la barra. */
+  _clearSelection() {
+    this._selected.clear();
+    this.$$('.inv-card[data-sel-on]').forEach((c) => c.removeAttribute('data-sel-on'));
+    this.$$('.inv-card-sel input:checked').forEach((c) => { c.checked = false; });
+    const bulk = this.$('#bulkbar');
+    if (bulk) bulk.innerHTML = this._bulkbarTpl;
+  }
+
+  /** @param {MouseEvent} e */
+  _onBulkClick(e) {
+    const b = e.target.closest('[data-bulk]');
+    if (!b) return;
+    const a = b.dataset.bulk;
+    if (a === 'clear') this._clearSelection();
+    else if (a === 'remove') this._bulkRemove();
+    else this._bulkRsvp(a);
+  }
+
+  /**
+   * Fija el mismo RSVP a todos los seleccionados.
+   * @param {string} rsvp
+   */
+  _bulkRsvp(rsvp) {
+    const ids = [...this._selected];
+    ids.forEach((id) => {
+      const g = this._invitados.find((x) => x.id === id);
+      if (g) this._syncInvitado(invitadosRepo.upsert({ ...g, rsvp }));
+    });
+    this._apply(true);
+  }
+
+  /** Quita todos los seleccionados, con opción de deshacer. */
+  _bulkRemove() {
+    const snap = [...this._selected].map((id) => this._invitados.find((x) => x.id === id)).filter(Boolean).map((g) => ({ ...g }));
+    if (!snap.length) return;
+    snap.forEach((g) => invitadosRepo.remove(g.id));
+    const ids = new Set(snap.map((g) => g.id));
+    this._invitados = this._invitados.filter((x) => !ids.has(x.id));
+    this._selected.clear();
+    this._apply(true);
+    this._toast('inv.bulk.quitados', { n: snap.length }, {
+      actionLabel: t('inv.toast.deshacer'),
+      onAction: () => { snap.forEach((g) => this._syncInvitado(invitadosRepo.upsert({ ...g }))); this._apply(true); },
+    });
+  }
+
+  // ---------- Insights accionables ----------
+
+  /** @param {MouseEvent} e */
+  _onInsightsClick(e) {
+    const b = e.target.closest('[data-insight]');
+    if (!b) return;
+    const map = {
+      sinEnviar: () => { this._inv = 'sin enviar'; this._syncSelect('#f-inv', 'sin enviar'); },
+      pendientes: () => { this._rsvp = 'pendiente'; this._syncSelect('#f-rsvp', 'pendiente'); },
+      especiales: () => { this._menu = 'especiales'; this._syncSelect('#f-menu', 'especiales'); },
+    };
+    (map[b.dataset.insight] || (() => {}))();
+    this._apply(false, null, true);
+  }
+
+  /**
+   * @param {string} sel Selector del control.
+   * @param {string} value
+   */
+  _syncSelect(sel, value) { const el = this.$(sel); if (el) el.value = value; }
+
+  // ---------- Celebración al 100% confirmado ----------
+
+  /** Lanza un destello de celebración la primera vez que todos confirman. */
+  _maybeCelebrate() {
+    const total = this._invitados.length;
+    const conf = this._invitados.filter((g) => g.rsvp === 'confirmado').length;
+    const complete = total > 0 && conf === total;
+    if (complete && !this._wasComplete) { this._confetti(); this._toast('inv.celebrate'); }
+    this._wasComplete = complete;
+  }
+
+  /** Confeti sobrio sobre el donut del hero (respeta prefers-reduced-motion). */
+  _confetti() {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const host = this.$('#confetti');
+    if (!host) return;
+    const colors = ['var(--rsvp-si-dot)', 'var(--color-accent)', 'var(--lado-novia)', 'var(--lado-novio)'];
+    const frag = [];
+    for (let i = 0; i < 16; i++) {
+      const x = (Math.random() * 2 - 1) * 120;
+      const y = -60 - Math.random() * 90;
+      const rot = (Math.random() * 2 - 1) * 240;
+      const delay = Math.random() * 120;
+      frag.push(`<span class="inv-confetti-bit" style="--x:${x.toFixed(0)}px;--y:${y.toFixed(0)}px;--r:${rot.toFixed(0)}deg;animation-delay:${delay.toFixed(0)}ms;background:${colors[i % colors.length]}"></span>`);
+    }
+    host.innerHTML = frag.join('');
+    clearTimeout(this._confettiT);
+    this._confettiT = setTimeout(() => { host.innerHTML = ''; }, 1400);
   }
 
   /** @param {MouseEvent} e */
@@ -764,10 +945,22 @@ export class InvitadosView extends AppElement {
   _removeInvitado(id) {
     const g = this._invitados.find((x) => x.id === id);
     if (!g) return;
+    const snapshot = { ...g };
     invitadosRepo.remove(id);
     this._invitados = this._invitados.filter((x) => x.id !== id);
-    this._toast('inv.toast.quitado', { nombre: g.nombre });
+    this._selected.delete(id);
     this._apply(true);
+    this._toast('inv.toast.quitado', { nombre: g.nombre }, {
+      actionLabel: t('inv.toast.deshacer'),
+      onAction: () => this._undoRemove(snapshot),
+    });
+  }
+
+  /** @param {object} g Invitado a restaurar. */
+  _undoRemove(g) {
+    this._syncInvitado(invitadosRepo.upsert({ ...g }));
+    this._apply(true);
+    this._toast('inv.toast.restaurado', { nombre: g.nombre });
   }
 
   /**
@@ -828,9 +1021,9 @@ export class InvitadosView extends AppElement {
    * @param {string} key Clave i18n.
    * @param {Record<string, string|number>} [vars]
    */
-  _toast(key, vars) {
+  _toast(key, vars, opts) {
     const el = this.$('#toast');
-    if (el && typeof el.show === 'function') el.show(t(key, vars));
+    if (el && typeof el.show === 'function') el.show(t(key, vars), opts);
   }
 }
 
