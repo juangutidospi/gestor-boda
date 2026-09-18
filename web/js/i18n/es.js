@@ -214,6 +214,7 @@ export default {
   'inv.add.nota.ph': 'Ej. menú sin gluten, viene desde Bilbao',
   'inv.add.save': 'Guardar invitado',
   'inv.add.needName': 'Escribe el nombre del invitado',
+  'inv.chips.clear': 'Limpiar filtros',
   'inv.toast.creado': '{nombre} añadido a la lista',
   'inv.toast.quitado': '{nombre} quitado de la lista',
 };

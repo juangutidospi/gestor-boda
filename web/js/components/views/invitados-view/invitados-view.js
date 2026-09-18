@@ -128,6 +128,7 @@ export class InvitadosView extends AppElement {
         <div id="hero">${this._heroTpl}</div>
         <div id="stats">${this._statsTpl}</div>
         ${this._filtrosTpl}
+        <div id="chips">${this._chipsTpl}</div>
         <div id="list">${this._listTpl}</div>
         <div id="empty">${visibles.length ? '' : this._emptyTpl}</div>
         <p class="inv-foot muted">${escapeHtml(this._footTxt)}</p>
@@ -272,6 +273,22 @@ export class InvitadosView extends AppElement {
         </div>
         <button type="button" class="btn btn-primary inv-add" id="add-open">+&nbsp;&nbsp;${escapeHtml(t('inv.add'))}</button>
       </section>`;
+  }
+
+  /** @returns {string} Chips de los filtros activos (quitables); vacío si no hay ninguno. */
+  get _chipsTpl() {
+    const chips = [];
+    if (this._q) chips.push({ k: 'q', label: t('inv.search'), val: this._q });
+    if (this._lado !== 'Todos') chips.push({ k: 'lado', label: t('inv.filter.lado'), val: t(ENUMS.invLado[this._lado]) });
+    if (this._grupo !== 'Todos') chips.push({ k: 'grupo', label: t('inv.filter.circulo'), val: this._grupo });
+    if (this._rsvp !== 'Todos') chips.push({ k: 'rsvp', label: t('inv.filter.confirmacion'), val: t(ENUMS.invRsvp[this._rsvp]) });
+    if (this._inv !== 'Todas') chips.push({ k: 'inv', label: t('inv.filter.invitacion'), val: t(ENUMS.invInvitacion[this._inv]) });
+    if (this._menu !== 'Todos') chips.push({ k: 'menu', label: t('inv.filter.menu'), val: this._menu === 'especiales' ? t('inv.filter.menu.especiales') : this._menu });
+    if (!chips.length) return '';
+    return `<div class="inv-chips">
+      ${chips.map((c) => `<button type="button" class="inv-chip" data-clear="${escapeHtml(c.k)}"><span class="inv-chip-k">${escapeHtml(c.label)}</span><span class="inv-chip-v">${escapeHtml(c.val)}</span><span class="inv-chip-x" aria-hidden="true">×</span></button>`).join('')}
+      <button type="button" class="inv-chip inv-chip-clear" data-clear="all">${escapeHtml(t('inv.chips.clear'))}</button>
+    </div>`;
   }
 
   /** @returns {object[]} Invitados filtrados según el estado actual. */
@@ -504,6 +521,7 @@ export class InvitadosView extends AppElement {
     this.on(this.$('#add-open'), 'click', () => this._openAdd());
 
     // Contenedores estables: delegación una sola vez por render completo.
+    this.on(this.$('#chips'), 'click', (e) => this._onChipsClick(e));
     this.on(this.$('#list'), 'click', (e) => this._onListClick(e));
     this.on(this.$('#list'), 'change', (e) => this._onListChange(e));
     this.on(this.$('#empty'), 'click', (e) => { if (e.target.closest('#empty-add')) this._openAdd(); });
@@ -558,6 +576,8 @@ export class InvitadosView extends AppElement {
     if (list) list.innerHTML = this._listTpl;
     const empty = this.$('#empty');
     if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
+    const chips = this.$('#chips');
+    if (chips) chips.innerHTML = this._chipsTpl;
     if (refreshHero) {
       const hero = this.$('#hero');
       if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
@@ -612,6 +632,30 @@ export class InvitadosView extends AppElement {
     if (rsvpSel) { this._setRsvp(rsvpSel.dataset.rsvp, rsvpSel.value); return; }
     const mesaSel = e.target.closest('[data-mesa]');
     if (mesaSel) this._setMesa(mesaSel.dataset.mesa, mesaSel.value);
+  }
+
+  /** @param {MouseEvent} e */
+  _onChipsClick(e) {
+    const chip = e.target.closest('[data-clear]');
+    if (chip) this._clearFilter(chip.dataset.clear);
+  }
+
+  /**
+   * Restablece un filtro (o todos) a su valor por defecto y sincroniza el
+   * control correspondiente de la barra estática.
+   * @param {string} k Clave del filtro, o 'all'.
+   */
+  _clearFilter(k) {
+    const defs = { q: '', lado: 'Todos', grupo: 'Todos', rsvp: 'Todos', inv: 'Todas', menu: 'Todos' };
+    const sel = { q: '#f-q', lado: '#f-lado', grupo: '#f-grupo', rsvp: '#f-rsvp', inv: '#f-inv', menu: '#f-menu' };
+    const one = (key) => {
+      this[`_${key}`] = defs[key];
+      const el = this.$(sel[key]);
+      if (el) el.value = defs[key];
+    };
+    if (k === 'all') Object.keys(defs).forEach(one);
+    else if (k in defs) one(k);
+    this._apply();
   }
 
   /** @param {MouseEvent} e */

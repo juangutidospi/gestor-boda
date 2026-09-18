@@ -67,6 +67,27 @@ export const styles = css`
 .inv-view-toggle { margin-bottom: 1px; }
 .inv-add { margin-left: auto; }
 
+/* ---------- Chips de filtros activos ---------- */
+#chips:empty { display: none; }
+.inv-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; animation: invRise .3s ease both; }
+.inv-chip {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 5px 10px; border-radius: 999px; font-size: 12px; color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-accent) 32%, transparent);
+  transition: background .15s ease, border-color .15s ease;
+}
+.inv-chip:hover { background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)); }
+.inv-chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.inv-chip-k { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-neutral-700); }
+.inv-chip-v { font-weight: 600; }
+.inv-chip-x { font-size: 15px; line-height: 1; color: var(--color-accent-700); margin-left: 1px; }
+.inv-chip-clear {
+  background: transparent; border-color: transparent; color: var(--color-accent-700);
+  text-transform: uppercase; letter-spacing: .06em; font-size: 11px; font-weight: 600;
+}
+.inv-chip-clear:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+
 /* ---------- Encabezado de grupo (círculo) ---------- */
 .inv-grupo-head {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-3);

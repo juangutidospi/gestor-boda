@@ -214,6 +214,7 @@ export default {
   'inv.add.nota.ph': 'e.g. gluten-free menu, coming from Bilbao',
   'inv.add.save': 'Save guest',
   'inv.add.needName': "Enter the guest's name",
+  'inv.chips.clear': 'Clear filters',
   'inv.toast.creado': '{nombre} added to the list',
   'inv.toast.quitado': '{nombre} removed',
 };
