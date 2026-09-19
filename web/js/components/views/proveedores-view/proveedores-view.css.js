@@ -20,7 +20,6 @@ export const styles = css`
 .prov-stat-label { display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); }
 .prov-stat-value { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 30px; line-height: 1.1; margin-top: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .prov-stat-note { display: block; }
-.prov-stat-value { font-variant-numeric: tabular-nums; }
 
 /* ---------- Hero (donut de cobertura + medidor de gasto) ---------- */
 :host { position: relative; }

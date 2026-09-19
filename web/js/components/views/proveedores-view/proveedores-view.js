@@ -56,8 +56,7 @@ export class ProveedoresView extends AppElement {
     this._provs = proveedoresRepo.list();
     this._cats = listaCategorias();
     this._limite = Number(presupuestoRepo.get().limite) || 0;
-    const cub = new Set(this._provs.filter((p) => p.estado === 'contratado').map((p) => p.categoria));
-    this._wasFullyCovered = this._cats.length > 0 && cub.size === this._cats.length;
+    this._wasFullyCovered = this._cats.length > 0 && chipsCategorias(this._provs, this._cats).every((c) => c.estado === 'cubierta');
     this._paint();
   }
 
@@ -371,8 +370,7 @@ export class ProveedoresView extends AppElement {
 
   /** Confeti + aviso la primera vez que se cubren todas las categorías. */
   _maybeCelebrate() {
-    const cub = new Set(this._provs.filter((p) => p.estado === 'contratado').map((p) => p.categoria));
-    const complete = this._cats.length > 0 && cub.size === this._cats.length;
+    const complete = this._cats.length > 0 && chipsCategorias(this._provs, this._cats).every((c) => c.estado === 'cubierta');
     if (complete && !this._wasFullyCovered) { this._confetti(); this._toast('prov.celebrate'); }
     this._wasFullyCovered = complete;
   }
