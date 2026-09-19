@@ -114,6 +114,11 @@ export const styles = css`
   box-shadow: var(--shadow-sm); transition: transform .14s ease, box-shadow .14s ease;
 }
 .prov-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+/* Los contratados destacan con fondo verde muy suave y borde de acento verde. */
+.prov-card[data-estado="contratado"] { background: var(--rsvp-si-bg); border-color: var(--rsvp-si-line); }
+/* Los descartados se atenúan para bajarlos en la jerarquía visual. */
+.prov-card[data-estado="descartado"] { opacity: .72; }
+.prov-card[data-estado="descartado"]:hover { opacity: 1; }
 .prov-card-top { display: flex; align-items: flex-start; gap: var(--space-2); }
 .prov-card-id { display: flex; flex-direction: column; gap: 1px; }
 .prov-card-cat { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-accent-700); }

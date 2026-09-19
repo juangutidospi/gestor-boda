@@ -229,7 +229,7 @@ export class ProveedoresView extends AppElement {
     const contratado = p.estado === 'contratado';
     const accionLabel = contratado ? t('prov.card.contratado') : t('prov.card.contratar');
     return `
-      <article class="prov-card" data-id="${escapeHtml(p.id)}" style="--i:${idx}">
+      <article class="prov-card" data-id="${escapeHtml(p.id)}" data-estado="${escapeHtml(p.estado)}" style="--i:${idx}">
         <div class="prov-card-top">
           <div class="prov-card-id">
             <span class="prov-card-cat">${escapeHtml(p.categoria)}</span>
