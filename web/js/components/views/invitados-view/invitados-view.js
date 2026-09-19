@@ -141,6 +141,8 @@ export class InvitadosView extends AppElement {
     this._invitados = invitadosRepo.list();
     this._mesas = mesasRepo.list();
     this._elegida = fincasRepo.list().find((f) => f.estado === 'elegida') || null;
+    // Semilla del estado "todo confirmado" para no celebrar en falso al abrir.
+    this._wasComplete = this._invitados.length > 0 && this._invitados.every((g) => g.rsvp === 'confirmado');
     this._paint();
   }
 
@@ -399,7 +401,7 @@ export class InvitadosView extends AppElement {
     const mesaId = g.mesa || '';
     return `
       <article class="inv-card" tabindex="0" data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}"${this._selected.has(g.id) ? ' data-sel-on' : ''} style="--card-lado:${lado.color};--i:${idx}">
-        <label class="inv-card-sel"><input type="checkbox" data-sel="${escapeHtml(g.id)}"${this._selected.has(g.id) ? ' checked' : ''} aria-label="Seleccionar"></label>
+        <label class="inv-card-sel"><input type="checkbox" data-sel="${escapeHtml(g.id)}"${this._selected.has(g.id) ? ' checked' : ''} aria-label="${escapeHtml(t('inv.card.seleccionar'))}"></label>
         <div class="inv-card-top">
           <span class="inv-avatar" style="background:${lado.bg};color:${lado.ink}" aria-hidden="true">
             ${escapeHtml(iniciales(g.nombre))}
@@ -677,9 +679,14 @@ export class InvitadosView extends AppElement {
     const g = this._invitados.find((x) => x.id === id);
     if (!card || !g) { this._apply(true, id); return; }
     const idx = Number(card.style.getPropertyValue('--i')) || 0;
+    const wasFocused = this.shadowRoot.activeElement === card;
     card.outerHTML = this._cardTpl(g, idx);
     const fresh = this.$(`.inv-card[data-id="${id}"]`);
-    if (fresh) { fresh.classList.add('inv-flash'); setTimeout(() => fresh.classList.remove('inv-flash'), 620); }
+    if (fresh) {
+      fresh.classList.add('inv-flash');
+      setTimeout(() => fresh.classList.remove('inv-flash'), 620);
+      if (wasFocused) fresh.focus(); // conserva el foco para encadenar atajos c/p/n
+    }
     const hero = this.$('#hero');
     if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
     const stats = this.$('#stats');
@@ -821,6 +828,7 @@ export class InvitadosView extends AppElement {
       const g = this._invitados.find((x) => x.id === id);
       if (g) this._syncInvitado(invitadosRepo.upsert({ ...g, rsvp }));
     });
+    this._selected.clear();
     this._apply(true);
   }
 

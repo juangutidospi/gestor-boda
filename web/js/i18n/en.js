@@ -224,6 +224,7 @@ export default {
   'inv.bulk.quitar': 'Remove',
   'inv.bulk.limpiar': 'Clear selection',
   'inv.bulk.quitados': '{n} removed',
+  'inv.card.seleccionar': 'Select guest',
   'inv.insight.sinEnviar': '{n} not sent',
   'inv.insight.pendientes': '{n} awaiting reply',
   'inv.insight.especiales': '{n} special menus',
