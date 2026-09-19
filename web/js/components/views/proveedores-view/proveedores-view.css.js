@@ -20,6 +20,66 @@ export const styles = css`
 .prov-stat-label { display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); }
 .prov-stat-value { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 30px; line-height: 1.1; margin-top: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .prov-stat-note { display: block; }
+.prov-stat-value { font-variant-numeric: tabular-nums; }
+
+/* ---------- Hero (donut de cobertura + medidor de gasto) ---------- */
+:host { position: relative; }
+.prov-hero {
+  display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap;
+  padding: var(--space-5) var(--space-4); margin-bottom: var(--space-2);
+  background: var(--color-surface); border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+}
+.prov-hero-ring { position: relative; flex: none; width: 128px; height: 128px; }
+.prov-donut { width: 128px; height: 128px; }
+.prov-donut-track { stroke: color-mix(in srgb, var(--color-text) 9%, transparent); }
+.prov-donut-arc { transform-origin: 64px 64px; transition: stroke-dashoffset 1s cubic-bezier(.22,.61,.36,1); }
+.prov-donut-arc.is-cub { stroke: var(--rsvp-si-dot); }
+.prov-donut-arc.is-marcha { stroke: var(--color-accent); }
+.prov-donut-arc.is-vacia { stroke: color-mix(in srgb, var(--color-text) 22%, transparent); }
+.prov-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.prov-donut-num { font-family: var(--font-heading); font-weight: 600; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.prov-donut-lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.prov-hero-body { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: var(--space-4); }
+.prov-hero-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.prov-leg { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--color-neutral-700); }
+.prov-leg b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+.prov-leg-dot { width: 9px; height: 9px; border-radius: 50%; }
+.prov-leg-dot.is-cub { background: var(--rsvp-si-dot); }
+.prov-leg-dot.is-marcha { background: var(--color-accent); }
+.prov-leg-dot.is-vacia { background: color-mix(in srgb, var(--color-text) 22%, transparent); }
+.prov-meter-lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 6px; }
+.prov-meter-bar { height: 9px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--color-text) 8%, transparent); }
+.prov-meter-fill { display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-accent-700), var(--color-accent)); transition: width 1s cubic-bezier(.22,.61,.36,1); }
+.prov-meter-empty { opacity: .6; }
+.prov-meter-cap { font-size: 12px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+/* ---------- Insights accionables ---------- */
+#insights:empty { display: none; }
+.prov-insights { display: flex; flex-wrap: wrap; gap: 8px; }
+.prov-insight { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 6px 12px; border-radius: 999px; font-size: 12.5px; color: var(--color-text);
+  background: var(--color-surface); border: 1px solid var(--color-divider);
+  transition: border-color .15s ease, background .15s ease; }
+.prov-insight:hover { border-color: var(--color-accent-300); background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)); }
+.prov-insight:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* ---------- Flash al contratar + confeti al cubrir todo ---------- */
+@keyframes provFlash {
+  0% { box-shadow: var(--shadow-sm), inset 0 0 0 2px color-mix(in srgb, var(--rsvp-si-dot) 65%, transparent); }
+  100% { box-shadow: var(--shadow-sm); }
+}
+.prov-card.prov-flash { animation: provFlash .6s ease-out; }
+#confetti { position: absolute; left: 88px; top: 250px; width: 0; height: 0; z-index: 40; pointer-events: none; }
+.prov-confetti-bit { position: absolute; width: 8px; height: 8px; border-radius: 2px;
+  animation: provConfetti 1.2s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes provConfetti { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)); } }
+@media (prefers-reduced-motion: reduce) {
+  .prov-donut-arc, .prov-meter-fill { transition: none; }
+  .prov-card.prov-flash { animation: none; }
+  .prov-confetti-bit { animation: none; opacity: 0; }
+}
 
 /* ---------- Filtros ---------- */
 .prov-filters { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; padding-bottom: var(--space-2); }

@@ -4,9 +4,9 @@ import { styles } from './proveedores-view.css.js';
 import { t } from '../../../i18n/index.js';
 import { ENUMS } from '../../../core/enums.js';
 import {
-  filtrar, ordenar, calcularStats, chipsCategorias, eur,
+  filtrar, ordenar, calcularStats, chipsCategorias, eur, eurK,
 } from './proveedores-calc.js';
-import { ensureSeeded, proveedoresRepo, listaCategorias } from '../../../core/repos.js';
+import { ensureSeeded, proveedoresRepo, listaCategorias, presupuestoRepo } from '../../../core/repos.js';
 import '../../ui/modal-dialog/modal-dialog.js';
 import '../../ui/estado-badge/estado-badge.js';
 import '../../ui/empty-state/empty-state.js';
@@ -45,12 +45,19 @@ export class ProveedoresView extends AppElement {
   /** @type {string|null} */
   _editId = null;
   _draft = draftVacio();
+  /** Presupuesto límite (para el medidor de gasto del hero). */
+  _limite = 0;
+  /** Recuerda si ya estaban todas las categorías cubiertas (celebración una vez). */
+  _wasFullyCovered = false;
 
   /** Público: lo llama el router al abrir la vista. */
   refresh() {
     ensureSeeded();
     this._provs = proveedoresRepo.list();
     this._cats = listaCategorias();
+    this._limite = Number(presupuestoRepo.get().limite) || 0;
+    const cub = new Set(this._provs.filter((p) => p.estado === 'contratado').map((p) => p.categoria));
+    this._wasFullyCovered = this._cats.length > 0 && cub.size === this._cats.length;
     this._paint();
   }
 
@@ -62,6 +69,8 @@ export class ProveedoresView extends AppElement {
           <h1>${escapeHtml(t('prov.title'))}</h1>
           <p class="muted">${escapeHtml(t('prov.subtitle'))}</p>
         </div>
+        <div id="hero">${this._heroTpl}</div>
+        <div id="insights">${this._insightsTpl}</div>
         <div id="stats">${this._statsTpl}</div>
         ${this._filtersTpl}
         <section class="prov-chips-wrap" id="chips">${this._chipsTpl}</section>
@@ -69,6 +78,7 @@ export class ProveedoresView extends AppElement {
         <div id="empty">${this._visible.length ? '' : this._emptyTpl}</div>
         <p class="prov-foot muted">${escapeHtml(t('prov.foot'))}</p>
         <div id="overlay">${this._overlayTpl}</div>
+        <div id="confetti" aria-hidden="true"></div>
         <app-toast id="toast"></app-toast>
       </div>`;
   }
@@ -85,6 +95,71 @@ export class ProveedoresView extends AppElement {
             <span class="prov-stat-note muted">${escapeHtml(s.noteRaw ? s.note : t(s.note, s.noteVars))}</span>
           </div>`).join('')}
       </section>`;
+  }
+
+  /**
+   * Hero de progreso: donut de cobertura de categorías (cubiertas/en marcha/por
+   * cubrir) y medidor de gasto (comprometido vs presupuesto límite). Se anima al pintar.
+   * @returns {string}
+   */
+  get _heroTpl() {
+    const chips = chipsCategorias(this._provs, this._cats);
+    const cub = chips.filter((c) => c.estado === 'cubierta').length;
+    const marcha = chips.filter((c) => c.estado === 'enMarcha').length;
+    const vacia = chips.filter((c) => c.estado === 'vacia').length;
+    const totalCat = this._cats.length || 1;
+    const R = 54;
+    const C = 2 * Math.PI * R;
+    const seg = (n) => (n / totalCat) * C;
+    const arc = (len, startFrac, cls) => `<circle class="prov-donut-arc ${cls}" cx="64" cy="64" r="${R}" fill="none" stroke-width="14" stroke-linecap="round"
+      style="stroke-dasharray:${len.toFixed(1)} ${C.toFixed(1)};stroke-dashoffset:${len.toFixed(1)};transform:rotate(${(-90 + startFrac * 360).toFixed(2)}deg)"></circle>`;
+    const comprometido = this._provs.filter((p) => p.estado === 'contratado').reduce((a, p) => a + (Number(p.precio) || 0), 0);
+    const senal = this._provs.reduce((a, p) => a + (Number(p.senal) || 0), 0);
+    const pct = this._limite ? Math.min(100, Math.round((comprometido / this._limite) * 100)) : 0;
+    const meter = this._limite
+      ? `<div class="prov-meter-bar"><span class="prov-meter-fill" style="width:0" data-w="${pct}"></span></div>
+         <div class="prov-meter-cap muted">${escapeHtml(t('prov.hero.gastoCap', { gasto: eurK(comprometido), limite: eurK(this._limite), senal: eurK(senal) }))}</div>`
+      : `<div class="prov-meter-bar prov-meter-empty"></div>
+         <div class="prov-meter-cap muted">${escapeHtml(t('prov.hero.sinLimite', { gasto: eurK(comprometido) }))}</div>`;
+    return `
+      <section class="prov-hero">
+        <div class="prov-hero-ring">
+          <svg viewBox="0 0 128 128" class="prov-donut" aria-hidden="true">
+            <circle cx="64" cy="64" r="${R}" fill="none" stroke-width="14" class="prov-donut-track"></circle>
+            ${cub ? arc(seg(cub), 0, 'is-cub') : ''}
+            ${marcha ? arc(seg(marcha), cub / totalCat, 'is-marcha') : ''}
+            ${vacia ? arc(seg(vacia), (cub + marcha) / totalCat, 'is-vacia') : ''}
+          </svg>
+          <div class="prov-donut-center">
+            <span class="prov-donut-num"><span data-count="${cub}">0</span>/${totalCat}</span>
+            <span class="prov-donut-lbl muted">${escapeHtml(t('prov.hero.cubiertas'))}</span>
+          </div>
+        </div>
+        <div class="prov-hero-body">
+          <div class="prov-hero-legend">
+            <span class="prov-leg"><i class="prov-leg-dot is-cub"></i>${escapeHtml(t('prov.hero.leg.cubierta'))} <b>${cub}</b></span>
+            <span class="prov-leg"><i class="prov-leg-dot is-marcha"></i>${escapeHtml(t('prov.hero.leg.enMarcha'))} <b>${marcha}</b></span>
+            <span class="prov-leg"><i class="prov-leg-dot is-vacia"></i>${escapeHtml(t('prov.hero.leg.vacia'))} <b>${vacia}</b></span>
+          </div>
+          <div class="prov-meter">
+            <div class="prov-meter-lbl">${escapeHtml(t('prov.hero.gasto'))}</div>
+            ${meter}
+          </div>
+        </div>
+      </section>`;
+  }
+
+  /** @returns {string} Chips de insight accionables (cada uno aplica un filtro de estado). */
+  get _insightsTpl() {
+    const porBuscar = this._provs.filter((p) => p.estado === 'pendiente').length;
+    const conPres = this._provs.filter((p) => p.estado === 'presupuesto').length;
+    const sinSenal = this._provs.filter((p) => p.estado === 'contratado' && !(Number(p.senal) > 0)).length;
+    const items = [];
+    if (porBuscar) items.push({ k: 'pendiente', txt: t('prov.insight.porBuscar', { n: porBuscar }) });
+    if (conPres) items.push({ k: 'presupuesto', txt: t('prov.insight.presupuesto', { n: conPres }) });
+    if (sinSenal) items.push({ k: 'sinSenal', txt: t('prov.insight.sinSenal', { n: sinSenal }) });
+    if (!items.length) return '';
+    return `<div class="prov-insights">${items.map((i) => `<button type="button" class="prov-insight" data-insight="${i.k}">${escapeHtml(i.txt)}</button>`).join('')}</div>`;
   }
 
   /** @returns {string} Barra de filtros (estática: se cablea una sola vez). */
@@ -241,6 +316,7 @@ export class ProveedoresView extends AppElement {
     this.on(this.$('#add-open'), 'click', () => this._openAdd());
 
     // Contenedores estables: delegación una sola vez por render completo.
+    this.on(this.$('#insights'), 'click', (e) => this._onInsightsClick(e));
     this.on(this.$('#chips'), 'click', (e) => this._onChipsClick(e));
     this.on(this.$('#grid'), 'click', (e) => this._onGridClick(e));
     this.on(this.$('#empty'), 'click', (e) => { if (e.target.closest('#empty-add')) this._openAdd(); });
@@ -251,13 +327,79 @@ export class ProveedoresView extends AppElement {
     this._wireBadges();
     this._wireOverlayDialogs();
     this._playStagger();
+    this._animateHero();
+  }
+
+  /**
+   * Dibuja el anillo, rellena el medidor y sube los contadores del hero.
+   * Respeta prefers-reduced-motion.
+   */
+  _animateHero() {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const arcs = this.$$('.prov-donut-arc');
+    const fill = this.$('.prov-meter-fill');
+    const setFinal = () => {
+      arcs.forEach((a) => { a.style.strokeDashoffset = '0'; });
+      if (fill) fill.style.width = `${fill.dataset.w || 0}%`;
+    };
+    this.$$('[data-count]').forEach((el) => {
+      const target = Number(el.dataset.count) || 0;
+      if (reduce) { el.textContent = String(target); return; }
+      const dur = 720; const t0 = performance.now();
+      const step = (now) => {
+        const p = Math.min(1, (now - t0) / dur);
+        el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+    if (reduce) { setFinal(); return; }
+    requestAnimationFrame(() => requestAnimationFrame(setFinal));
+  }
+
+  /** @param {MouseEvent} e */
+  _onInsightsClick(e) {
+    const b = e.target.closest('[data-insight]');
+    if (!b) return;
+    const estado = { pendiente: 'pendiente', presupuesto: 'presupuesto', sinSenal: 'contratado' }[b.dataset.insight];
+    if (!estado) return;
+    this._estado = estado;
+    const sel = this.$('#pf-estado');
+    if (sel) sel.value = estado;
+    this._apply(true);
+  }
+
+  /** Confeti + aviso la primera vez que se cubren todas las categorías. */
+  _maybeCelebrate() {
+    const cub = new Set(this._provs.filter((p) => p.estado === 'contratado').map((p) => p.categoria));
+    const complete = this._cats.length > 0 && cub.size === this._cats.length;
+    if (complete && !this._wasFullyCovered) { this._confetti(); this._toast('prov.celebrate'); }
+    this._wasFullyCovered = complete;
+  }
+
+  /** Confeti sobrio sobre el donut (respeta prefers-reduced-motion). */
+  _confetti() {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const host = this.$('#confetti');
+    if (!host) return;
+    const colors = ['var(--rsvp-si-dot)', 'var(--color-accent)', 'var(--lado-novia)', 'var(--lado-novio)'];
+    const bits = [];
+    for (let i = 0; i < 16; i++) {
+      const x = (Math.random() * 2 - 1) * 120;
+      const y = -60 - Math.random() * 90;
+      const r = (Math.random() * 2 - 1) * 240;
+      bits.push(`<span class="prov-confetti-bit" style="--x:${x.toFixed(0)}px;--y:${y.toFixed(0)}px;--r:${r.toFixed(0)}deg;animation-delay:${(Math.random() * 120).toFixed(0)}ms;background:${colors[i % colors.length]}"></span>`);
+    }
+    host.innerHTML = bits.join('');
+    clearTimeout(this._confettiT);
+    this._confettiT = setTimeout(() => { host.innerHTML = ''; }, 1400);
   }
 
   /**
    * Re-renderiza solo stats/chips/rejilla/vacío para que la búsqueda no
    * pierda el foco del input (la barra de filtros nunca se vuelve a pintar).
    */
-  _apply(stagger = false) {
+  _apply(stagger = false, refreshHero = false, flashId = null) {
     const stats = this.$('#stats');
     if (stats) stats.innerHTML = this._statsTpl;
     const chips = this.$('#chips');
@@ -268,6 +410,17 @@ export class ProveedoresView extends AppElement {
     if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
     this._wireBadges();
     if (stagger) this._playStagger();
+    if (refreshHero) {
+      const hero = this.$('#hero');
+      if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
+      const ins = this.$('#insights');
+      if (ins) ins.innerHTML = this._insightsTpl;
+      this._maybeCelebrate();
+    }
+    if (flashId) {
+      const c = this.$(`.prov-card[data-id="${flashId}"]`);
+      if (c) { c.classList.add('prov-flash'); setTimeout(() => c.classList.remove('prov-flash'), 620); }
+    }
   }
 
   /** Reproduce (una vez) la entrada escalonada de las tarjetas de la rejilla. */
@@ -403,7 +556,7 @@ export class ProveedoresView extends AppElement {
     }
     this._open = false;
     this._editId = null;
-    this._apply();
+    this._apply(false, true);
     this._paintOverlay();
   }
 
@@ -417,7 +570,7 @@ export class ProveedoresView extends AppElement {
     const updated = proveedoresRepo.upsert({ ...p, estado: nextEstado });
     this._syncProv(updated);
     this._toast(nextEstado === 'contratado' ? 'prov.toast.contratado' : 'prov.toast.presupuesto', { nombre: p.nombre });
-    this._apply();
+    this._apply(false, true, id);
   }
 
   /** Elimina un proveedor con opción de deshacer (snapshot + app-toast con acción). */
@@ -427,7 +580,7 @@ export class ProveedoresView extends AppElement {
     const snapshot = { ...p };
     proveedoresRepo.remove(id);
     this._provs = this._provs.filter((x) => x.id !== id);
-    this._apply();
+    this._apply(false, true);
     this._toast('prov.toast.eliminado', { nombre: p.nombre }, {
       actionLabel: t('prov.toast.deshacer'),
       onAction: () => this._undoRemove(snapshot),
@@ -438,7 +591,7 @@ export class ProveedoresView extends AppElement {
   _undoRemove(p) {
     const restored = proveedoresRepo.upsert({ ...p });
     this._syncProv(restored);
-    this._apply();
+    this._apply(false, true);
   }
 
   /**
