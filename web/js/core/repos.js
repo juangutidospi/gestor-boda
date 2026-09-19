@@ -36,6 +36,9 @@ function collection(group, prefix) {
   };
 }
 
+/** @returns {string[]} Las categorías de proveedor del seed. */
+export function listaCategorias() { return SEED.categorias; }
+
 export const fincasRepo = collection('fincas', 'f');
 export const invitadosRepo = collection('invitados', 'g');
 export const proveedoresRepo = collection('proveedores', 'p');

@@ -13,6 +13,7 @@ export const ENUMS = {
   provEstado: {
     contratado: 'enum.prov.contratado', presupuesto: 'enum.prov.presupuesto',
     contactado: 'enum.prov.contactado', pendiente: 'enum.prov.pendiente',
+    descartado: 'enum.prov.descartado',
   },
   mesaForma: { redonda: 'enum.mesa.redonda', rectangular: 'enum.mesa.rectangular' },
 };

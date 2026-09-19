@@ -4,23 +4,11 @@
  * recibe los datos por parámetro para poder testearse en aislamiento.
  */
 
-/**
- * Formatea un importe en euros con separador de miles es-ES.
- * @param {number} n
- * @returns {string}
- */
-export function eur(n) { return Math.round(n).toLocaleString('es-ES', { useGrouping: true }) + ' €'; }
-
-/**
- * Formatea un importe: en miles con una decimal si es >= 10000, si no como eur().
- * @param {number} n
- * @returns {string}
- */
-export function eurK(n) {
-  return n >= 10000
-    ? (Math.round(n / 100) / 10).toLocaleString('es-ES', { minimumFractionDigits: 1 }) + 'k €'
-    : eur(n);
-}
+// Formato monetario compartido: se reexporta para mantener la API pública de
+// este módulo (usada por finca-view.js y sus tests) y se importa para el uso
+// interno (coste, stats, comparador).
+export { eur, eurK } from '../../../core/money.js';
+import { eur, eurK } from '../../../core/money.js';
 
 /**
  * Coste estimado de una finca para un nº de invitados.
