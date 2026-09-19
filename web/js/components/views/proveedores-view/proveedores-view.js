@@ -236,8 +236,8 @@ export class ProveedoresView extends AppElement {
 
   afterRender() {
     this.on(this.$('#pf-q'), 'input', (e) => { this._q = e.target.value; this._apply(); });
-    this.on(this.$('#pf-categoria'), 'change', (e) => { this._categoria = e.target.value; this._apply(); });
-    this.on(this.$('#pf-estado'), 'change', (e) => { this._estado = e.target.value; this._apply(); });
+    this.on(this.$('#pf-categoria'), 'change', (e) => { this._categoria = e.target.value; this._apply(true); });
+    this.on(this.$('#pf-estado'), 'change', (e) => { this._estado = e.target.value; this._apply(true); });
     this.on(this.$('#add-open'), 'click', () => this._openAdd());
 
     // Contenedores estables: delegación una sola vez por render completo.
@@ -257,7 +257,7 @@ export class ProveedoresView extends AppElement {
    * Re-renderiza solo stats/chips/rejilla/vacío para que la búsqueda no
    * pierda el foco del input (la barra de filtros nunca se vuelve a pintar).
    */
-  _apply() {
+  _apply(stagger = false) {
     const stats = this.$('#stats');
     if (stats) stats.innerHTML = this._statsTpl;
     const chips = this.$('#chips');
@@ -267,7 +267,7 @@ export class ProveedoresView extends AppElement {
     const empty = this.$('#empty');
     if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
     this._wireBadges();
-    this._playStagger();
+    if (stagger) this._playStagger();
   }
 
   /** Reproduce (una vez) la entrada escalonada de las tarjetas de la rejilla. */
