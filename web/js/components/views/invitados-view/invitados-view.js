@@ -1,0 +1,1038 @@
+import { AppElement } from '../../../core/AppElement.js';
+import { escapeHtml } from '../../../core/escape-html.js';
+import { styles } from './invitados-view.css.js';
+import { t } from '../../../i18n/index.js';
+import { ENUMS } from '../../../core/enums.js';
+import {
+  parseAcomp, filtrar, pax, circulosDe, menusDe, agrupar, calcularStats,
+  siguienteInvitacion, accionInvitacion,
+} from './invitados-calc.js';
+import {
+  ensureSeeded, invitadosRepo, mesasRepo, fincasRepo, configRepo,
+} from '../../../core/repos.js';
+import '../../ui/modal-dialog/modal-dialog.js';
+import '../../ui/empty-state/empty-state.js';
+import '../../ui/toast/toast.js';
+
+/** Círculos por defecto ofrecidos al dar de alta (se completan con los ya usados). */
+const GRUPOS_ALTA = ['Familia directa', 'Familia extensa', 'Amigos de siempre', 'Amigos del trabajo'];
+
+/** Orden de los estados de invitación y de confirmación usados en los selects de alta. */
+const ORDEN_INVITACION = ['sin enviar', 'enviada', 'recordatorio', 'respondida'];
+const ORDEN_RSVP_ALTA = ['pendiente', 'confirmado', 'no'];
+
+/** Borrador vacío del formulario de alta. */
+function draftVacio() {
+  return {
+    nombre: '', lado: 'novio', grupo: GRUPOS_ALTA[0], acomp: '', menu: 'Estándar', invitacion: 'sin enviar', rsvp: 'pendiente', nota: '',
+  };
+}
+
+/**
+ * Tokens de color según el lado (solo variables, nunca literales).
+ * @param {string} lado
+ * @returns {{color:string, bg:string, ink:string, label:string}}
+ */
+function ladoTokens(lado) {
+  const key = lado === 'novia' ? 'novia' : 'novio';
+  return {
+    color: `var(--lado-${key})`, bg: `var(--lado-${key}-bg)`, ink: `var(--lado-${key}-ink)`, label: t(ENUMS.invLado[key]),
+  };
+}
+
+/**
+ * Icono representativo del lado (novia con velo / novio con pajarita) como SVG
+ * inline; hereda el color con currentColor. Decorativo (aria-hidden).
+ * @param {string} lado
+ * @returns {string}
+ */
+function ladoIcon(lado) {
+  if (lado === 'novia') {
+    return '<svg class="inv-pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      + '<circle cx="12" cy="6.5" r="2.7"/><path d="M9.3 6.9C7 8.4 6 10.8 6 13.8S7.4 19.2 9.5 20.2"/>'
+      + '<path d="M14.7 6.9C17 8.4 18 10.8 18 13.8s-1.4 5.4-3.5 6.4"/><path d="M9.5 20.2h5"/></svg>';
+  }
+  return '<svg class="inv-pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<circle cx="12" cy="6.5" r="2.7"/><path d="M6 20.2c0-3.4 2.7-5.7 6-5.7s6 2.3 6 5.7"/>'
+    + '<path d="M12 15.6 9 14v3.2l3-1.6 3 1.6V14z" fill="currentColor" stroke="none"/></svg>';
+}
+
+/**
+ * Iniciales para el avatar (primeras letras de las dos primeras palabras).
+ * @param {string} nombre
+ * @returns {string}
+ */
+function iniciales(nombre) {
+  const partes = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase() || '·';
+}
+
+/**
+ * Icono de línea pequeño para las filas de metadatos de la tarjeta.
+ * @param {string} paths Contenido del SVG (paths).
+ * @returns {string}
+ */
+function metaIcon(paths) {
+  return `<svg class="inv-row-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+/** @returns {string} Icono de sobre (invitación). */
+function icSobre() { return metaIcon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6 8.5-6"/>'); }
+/** @returns {string} Icono de mesa (asignación). */
+function icMesa() { return metaIcon('<rect x="3" y="8" width="18" height="3" rx="1"/><path d="M6 11v7M18 11v7"/>'); }
+/** @returns {string} Icono de cubiertos (menú especial). */
+function icCubiertos() { return metaIcon('<path d="M7 3v7M5 3v3.5a2 2 0 0 0 4 0V3M7 10v11"/><path d="M17.5 3c-1.4 0-2.4 2-2.4 5s1 4 2.4 4M17.5 12v9"/>'); }
+
+/**
+ * Vista Invitados. Componente único: stats, filtros, tarjetas agrupadas por
+ * círculo o listado en tabla, y alta, todo como getters de plantilla de este
+ * mismo componente (sin sub-componentes de vista propios). Persistencia solo
+ * vía invitadosRepo/mesasRepo/fincasRepo.
+ */
+export class InvitadosView extends AppElement {
+  static styles = [styles];
+
+  /** @type {object[]} */
+  _invitados = [];
+  /** @type {object[]} */
+  _mesas = [];
+  /** @type {object|null} Finca elegida, para el aforo. */
+  _elegida = null;
+  _q = '';
+  _lado = 'Todos';
+  _grupo = 'Todos';
+  _rsvp = 'Todos';
+  _inv = 'Todas';
+  _menu = 'Todos';
+  /** @type {'tarjetas'|'lista'} */
+  _view = 'tarjetas';
+  _addOpen = false;
+  _draft = draftVacio();
+  /** @type {Set<string>} Ids seleccionados para acciones en lote. */
+  _selected = new Set();
+  /** Recuerda si ya estaba todo confirmado (para no repetir la celebración). */
+  _wasComplete = false;
+
+  /** Registra los atajos de teclado UNA sola vez (no en afterRender). */
+  connectedCallback() {
+    super.connectedCallback();
+    this.on(window, 'keydown', this._onKey);
+  }
+
+  /**
+   * Atajos: "/" enfoca el buscador; con una tarjeta enfocada, c/p/n fija la
+   * confirmación (confirmado/pendiente/no). Solo actúa si la vista es visible.
+   * @param {KeyboardEvent} e
+   */
+  _onKey = (e) => {
+    if (this.offsetParent === null) return;
+    const active = this.shadowRoot.activeElement;
+    const typing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
+    if (e.key === '/' && !typing) { e.preventDefault(); this.$('#f-q')?.focus(); return; }
+    const card = active?.closest?.('.inv-card');
+    if (card && !typing) {
+      const rsvp = { c: 'confirmado', p: 'pendiente', n: 'no' }[e.key.toLowerCase()];
+      if (rsvp) { e.preventDefault(); this._setRsvp(card.dataset.id, rsvp); }
+    }
+  };
+
+  /** Público: lo llama el router al abrir la vista. */
+  refresh() {
+    ensureSeeded();
+    this._invitados = invitadosRepo.list();
+    this._mesas = mesasRepo.list();
+    this._elegida = fincasRepo.list().find((f) => f.estado === 'elegida') || null;
+    // Semilla del estado "todo confirmado" para no celebrar en falso al abrir.
+    this._wasComplete = this._invitados.length > 0 && this._invitados.every((g) => g.rsvp === 'confirmado');
+    this._paint();
+  }
+
+  render() {
+    const visibles = this._visible;
+    this.shadowRoot.innerHTML = `
+      <div class="view-content">
+        <div class="page-head">
+          <span class="eyebrow">${escapeHtml(t('nav.invitados'))}</span>
+          <h1>${escapeHtml(t('inv.title'))}</h1>
+        </div>
+        <div id="hero">${this._heroTpl}</div>
+        <div id="insights">${this._insightsTpl}</div>
+        <div id="stats">${this._statsTpl}</div>
+        ${this._filtrosTpl}
+        <div id="chips">${this._chipsTpl}</div>
+        <div id="list">${this._listTpl}</div>
+        <div id="empty">${visibles.length ? '' : this._emptyTpl}</div>
+        <p class="inv-foot muted">${escapeHtml(this._footTxt)}</p>
+        <div id="overlay">${this._addOpen ? this._altaTpl : ''}</div>
+        <div id="bulkbar">${this._bulkbarTpl}</div>
+        <div id="confetti" aria-hidden="true"></div>
+        <app-toast id="toast"></app-toast>
+      </div>`;
+  }
+
+  /** @returns {string} Texto del pie: personas en lista y base de cálculo de coste. */
+  get _footTxt() {
+    const n = this._invitados.reduce((a, g) => a + pax(g), 0);
+    const inv = configRepo.get().guestCount || 140;
+    return t('inv.foot', { n, inv });
+  }
+
+  /** @returns {string} Las siete tarjetas de estadística. */
+  get _statsTpl() {
+    const stats = calcularStats(this._invitados, this._elegida);
+    return `
+      <section class="inv-stats-row">
+        ${stats.map((s) => {
+    const num = typeof s.value === 'number' ? ` data-count="${s.value}"` : '';
+    return `
+          <div class="inv-stat">
+            <span class="inv-stat-label">${escapeHtml(t(s.label))}</span>
+            <span class="inv-stat-value"${num}>${escapeHtml(String(s.value))}</span>
+            <span class="inv-stat-note muted">${escapeHtml(s.noteRaw ? s.note : t(s.note, s.noteVars))}</span>
+          </div>`;
+  }).join('')}
+      </section>`;
+  }
+
+  /**
+   * Hero de progreso: anillo de confirmación (confirmados/pendientes/no) y
+   * medidor de aforo (personas en lista vs finca elegida). Se dibuja al pintar.
+   * @returns {string}
+   */
+  get _heroTpl() {
+    const inv = this._invitados;
+    const total = inv.length;
+    const conf = inv.filter((g) => g.rsvp === 'confirmado').length;
+    const pend = inv.filter((g) => g.rsvp === 'pendiente').length;
+    const no = inv.filter((g) => g.rsvp === 'no').length;
+    const paxTotal = inv.reduce((a, g) => a + 1 + (Number(g.plus) || 0), 0);
+    const aforo = this._elegida ? this._elegida.capSent : 0;
+    const pctConf = total ? Math.round((conf / total) * 100) : 0;
+    const R = 54;
+    const C = 2 * Math.PI * R;
+    const base = total || 1;
+    const seg = (n) => (n / base) * C;
+    const arc = (len, startFrac, cls) => `<circle class="inv-donut-arc ${cls}" cx="64" cy="64" r="${R}" fill="none" stroke-width="14" stroke-linecap="round"
+      style="stroke-dasharray:${len.toFixed(1)} ${C.toFixed(1)};stroke-dashoffset:${len.toFixed(1)};transform:rotate(${(-90 + startFrac * 360).toFixed(2)}deg)"></circle>`;
+    const capPct = aforo ? Math.min(100, Math.round((paxTotal / aforo) * 100)) : 0;
+    const meter = aforo
+      ? `<div class="inv-meter-bar"><span class="inv-meter-fill" style="width:0" data-w="${capPct}"></span></div>
+         <div class="inv-meter-cap muted"><b>${paxTotal}</b> / ${aforo} · ${escapeHtml(this._elegida.nombre)}</div>`
+      : `<div class="inv-meter-bar inv-meter-empty"></div>
+         <div class="inv-meter-cap muted"><b>${paxTotal}</b> ${escapeHtml(t('inv.stat.lado.note'))} · ${escapeHtml(t('inv.stat.aforo.note.sin'))}</div>`;
+    return `
+      <section class="inv-hero">
+        <div class="inv-hero-ring">
+          <svg viewBox="0 0 128 128" class="inv-donut" aria-hidden="true">
+            <circle cx="64" cy="64" r="${R}" fill="none" stroke-width="14" class="inv-donut-track"></circle>
+            ${conf ? arc(seg(conf), 0, 'is-si') : ''}
+            ${pend ? arc(seg(pend), conf / base, 'is-pend') : ''}
+            ${no ? arc(seg(no), (conf + pend) / base, 'is-no') : ''}
+          </svg>
+          <div class="inv-donut-center">
+            <span class="inv-donut-pct" data-count="${pctConf}" data-suffix="%">0%</span>
+            <span class="inv-donut-lbl muted">${escapeHtml(t('inv.stat.confirmados'))}</span>
+          </div>
+        </div>
+        <div class="inv-hero-body">
+          <div class="inv-hero-legend">
+            <span class="inv-leg"><i class="inv-leg-dot is-si"></i>${escapeHtml(t('inv.filter.confirmados'))} <b>${conf}</b></span>
+            <span class="inv-leg"><i class="inv-leg-dot is-pend"></i>${escapeHtml(t('inv.filter.pendientes'))} <b>${pend}</b></span>
+            <span class="inv-leg"><i class="inv-leg-dot is-no"></i>${escapeHtml(t('inv.filter.noVienen'))} <b>${no}</b></span>
+          </div>
+          <div class="inv-meter">
+            <div class="inv-meter-lbl">${escapeHtml(t('inv.stat.aforo'))}</div>
+            ${meter}
+          </div>
+        </div>
+      </section>`;
+  }
+
+  /** @returns {string} Barra de filtros (estática: se cablea una sola vez). */
+  get _filtrosTpl() {
+    const circulos = circulosDe(this._invitados);
+    const menus = menusDe(this._invitados);
+    return `
+      <section class="inv-filtros">
+        <div class="field inv-search">
+          <label>${escapeHtml(t('inv.search'))}</label>
+          <input class="input" type="search" id="f-q" placeholder="${escapeHtml(t('inv.search.ph'))}" value="${escapeHtml(this._q)}">
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.lado'))}</label>
+          <select class="input" id="f-lado">
+            <option value="Todos"${this._lado === 'Todos' ? ' selected' : ''}>${escapeHtml(t('inv.filter.ambos'))}</option>
+            <option value="novio"${this._lado === 'novio' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invLado.novio))}</option>
+            <option value="novia"${this._lado === 'novia' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invLado.novia))}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.circulo'))}</label>
+          <select class="input" id="f-grupo">
+            <option value="Todos"${this._grupo === 'Todos' ? ' selected' : ''}>${escapeHtml(t('inv.filter.todos'))}</option>
+            ${circulos.map((c) => `<option value="${escapeHtml(c)}"${c === this._grupo ? ' selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.confirmacion'))}</label>
+          <select class="input" id="f-rsvp">
+            <option value="Todos"${this._rsvp === 'Todos' ? ' selected' : ''}>${escapeHtml(t('inv.filter.todas'))}</option>
+            <option value="confirmado"${this._rsvp === 'confirmado' ? ' selected' : ''}>${escapeHtml(t('inv.filter.confirmados'))}</option>
+            <option value="pendiente"${this._rsvp === 'pendiente' ? ' selected' : ''}>${escapeHtml(t('inv.filter.pendientes'))}</option>
+            <option value="no"${this._rsvp === 'no' ? ' selected' : ''}>${escapeHtml(t('inv.filter.noVienen'))}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.invitacion'))}</label>
+          <select class="input" id="f-inv">
+            <option value="Todas"${this._inv === 'Todas' ? ' selected' : ''}>${escapeHtml(t('inv.filter.todas'))}</option>
+            <option value="sin enviar"${this._inv === 'sin enviar' ? ' selected' : ''}>${escapeHtml(t('inv.filter.inv.sinEnviar'))}</option>
+            <option value="enviada"${this._inv === 'enviada' ? ' selected' : ''}>${escapeHtml(t('inv.filter.inv.enviada'))}</option>
+            <option value="recordatorio"${this._inv === 'recordatorio' ? ' selected' : ''}>${escapeHtml(t('inv.filter.inv.recordatorio'))}</option>
+            <option value="respondida"${this._inv === 'respondida' ? ' selected' : ''}>${escapeHtml(t('inv.filter.inv.respondida'))}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>${escapeHtml(t('inv.filter.menu'))}</label>
+          <select class="input" id="f-menu">
+            <option value="Todos"${this._menu === 'Todos' ? ' selected' : ''}>${escapeHtml(t('inv.filter.todos'))}</option>
+            <option value="especiales"${this._menu === 'especiales' ? ' selected' : ''}>${escapeHtml(t('inv.filter.menu.especiales'))}</option>
+            ${menus.map((m) => `<option value="${escapeHtml(m)}"${m === this._menu ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="seg inv-view-toggle">
+          <button type="button" class="seg-opt" id="v-tarjetas" aria-selected="${this._view === 'tarjetas'}">${escapeHtml(t('inv.view.cards'))}</button>
+          <button type="button" class="seg-opt" id="v-lista" aria-selected="${this._view === 'lista'}">${escapeHtml(t('inv.view.list'))}</button>
+        </div>
+        <button type="button" class="btn btn-primary inv-add" id="add-open">+&nbsp;&nbsp;${escapeHtml(t('inv.add'))}</button>
+      </section>`;
+  }
+
+  /** @returns {string} Chips de los filtros activos (quitables); vacío si no hay ninguno. */
+  get _chipsTpl() {
+    const chips = [];
+    if (this._q) chips.push({ k: 'q', label: t('inv.search'), val: this._q });
+    if (this._lado !== 'Todos') chips.push({ k: 'lado', label: t('inv.filter.lado'), val: t(ENUMS.invLado[this._lado]) });
+    if (this._grupo !== 'Todos') chips.push({ k: 'grupo', label: t('inv.filter.circulo'), val: this._grupo });
+    if (this._rsvp !== 'Todos') chips.push({ k: 'rsvp', label: t('inv.filter.confirmacion'), val: t(ENUMS.invRsvp[this._rsvp]) });
+    if (this._inv !== 'Todas') chips.push({ k: 'inv', label: t('inv.filter.invitacion'), val: t(ENUMS.invInvitacion[this._inv]) });
+    if (this._menu !== 'Todos') chips.push({ k: 'menu', label: t('inv.filter.menu'), val: this._menu === 'especiales' ? t('inv.filter.menu.especiales') : this._menu });
+    if (!chips.length) return '';
+    return `<div class="inv-chips">
+      ${chips.map((c) => `<button type="button" class="inv-chip" data-clear="${escapeHtml(c.k)}"><span class="inv-chip-k">${escapeHtml(c.label)}</span><span class="inv-chip-v">${escapeHtml(c.val)}</span><span class="inv-chip-x" aria-hidden="true">×</span></button>`).join('')}
+      <button type="button" class="inv-chip inv-chip-clear" data-clear="all">${escapeHtml(t('inv.chips.clear'))}</button>
+    </div>`;
+  }
+
+  /** @returns {string} Chips de insight accionables (cada uno aplica un filtro). */
+  get _insightsTpl() {
+    const inv = this._invitados;
+    const sinEnviar = inv.filter((g) => (g.invitacion || 'sin enviar') === 'sin enviar').length;
+    const pend = inv.filter((g) => g.rsvp === 'pendiente').length;
+    const esp = inv.filter((g) => g.menu && g.menu !== 'Estándar').length;
+    const items = [];
+    if (sinEnviar) items.push({ k: 'sinEnviar', ic: icSobre(), txt: t('inv.insight.sinEnviar', { n: sinEnviar }) });
+    if (pend) items.push({ k: 'pendientes', ic: '', txt: t('inv.insight.pendientes', { n: pend }) });
+    if (esp) items.push({ k: 'especiales', ic: icCubiertos(), txt: t('inv.insight.especiales', { n: esp }) });
+    if (!items.length) return '';
+    return `<div class="inv-insights">${items.map((i) => `<button type="button" class="inv-insight" data-insight="${i.k}">${i.ic}${escapeHtml(i.txt)}</button>`).join('')}</div>`;
+  }
+
+  /** @returns {string} Barra flotante de acciones en lote (vacía si no hay selección). */
+  get _bulkbarTpl() {
+    const n = this._selected.size;
+    if (!n) return '';
+    return `<div class="inv-bulk" role="toolbar">
+      <span class="inv-bulk-count">${escapeHtml(t('inv.bulk.sel', { n }))}</span>
+      <button class="btn" data-bulk="confirmado" type="button">${escapeHtml(t('inv.bulk.confirmar'))}</button>
+      <button class="btn" data-bulk="pendiente" type="button">${escapeHtml(t('inv.bulk.pendiente'))}</button>
+      <button class="btn" data-bulk="no" type="button">${escapeHtml(t('inv.bulk.no'))}</button>
+      <button class="btn" data-bulk="remove" type="button">${escapeHtml(t('inv.bulk.quitar'))}</button>
+      <button class="btn btn-ghost" data-bulk="clear" type="button">${escapeHtml(t('inv.bulk.limpiar'))}</button>
+    </div>`;
+  }
+
+  /** @returns {object[]} Invitados filtrados según el estado actual. */
+  get _visible() {
+    return filtrar(this._invitados, {
+      q: this._q, lado: this._lado, grupo: this._grupo, rsvp: this._rsvp, inv: this._inv, menu: this._menu,
+    });
+  }
+
+  /** @returns {string} Tarjetas agrupadas o tabla, según el modo de vista (vacío si no hay resultados). */
+  get _listTpl() {
+    const lista = this._visible;
+    if (!lista.length) return '';
+    return this._view === 'lista' ? this._tablaTpl(lista) : this._gruposTpl(lista);
+  }
+
+  /**
+   * @param {object[]} lista Invitados ya filtrados.
+   * @returns {string} Grupos por círculo, cada uno con encabezado y su rejilla de tarjetas.
+   */
+  _gruposTpl(lista) {
+    const grupos = agrupar(lista);
+    let idx = 0;
+    return grupos.map((gr) => {
+      const pctConf = gr.inv ? Math.round((gr.conf / gr.inv) * 100) : 0;
+      return `
+      <div class="inv-grupo-head" data-grupo="${escapeHtml(gr.titulo)}">
+        <h3>${escapeHtml(gr.titulo)}</h3>
+        <span class="inv-grupo-sub">${escapeHtml(t('inv.grupo.subtotal', { inv: gr.inv, pax: gr.pax, conf: gr.conf }))}</span>
+        <span class="inv-grupo-bar" title="${pctConf}%"><i style="width:${pctConf}%"></i></span>
+      </div>
+      <section class="inv-grid">${gr.items.map((g) => this._cardTpl(g, idx++)).join('')}</section>`;
+    }).join('');
+  }
+
+  /**
+   * @param {object} g
+   * @returns {string} Una tarjeta de invitado.
+   */
+  _cardTpl(g, idx = 0) {
+    const lado = ladoTokens(g.lado);
+    const plus = Number(g.plus) || 0;
+    const meta = g.nota ? g.nota : (plus ? t('inv.meta.acomp') : t('inv.meta.individual'));
+    const menuEspecial = g.menu && g.menu !== 'Estándar';
+    const invEstado = g.invitacion || 'sin enviar';
+    const invLabel = t(ENUMS.invInvitacion[invEstado]);
+    const invAccion = t(accionInvitacion(invEstado));
+    const acompanantes = g.acompanantes || [];
+    const acompLinea = acompanantes.length ? acompanantes.join(' · ') : (plus ? t('inv.acomp.sinNombre', { n: plus }) : '');
+    const mesaId = g.mesa || '';
+    return `
+      <article class="inv-card" tabindex="0" data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}"${this._selected.has(g.id) ? ' data-sel-on' : ''} style="--card-lado:${lado.color};--i:${idx}">
+        <label class="inv-card-sel"><input type="checkbox" data-sel="${escapeHtml(g.id)}"${this._selected.has(g.id) ? ' checked' : ''} aria-label="${escapeHtml(t('inv.card.seleccionar'))}"></label>
+        <div class="inv-card-top">
+          <span class="inv-avatar" style="background:${lado.bg};color:${lado.ink}" aria-hidden="true">
+            ${escapeHtml(iniciales(g.nombre))}
+            <span class="inv-avatar-status"></span>
+          </span>
+          <div class="inv-card-id">
+            <div class="inv-card-nombre">${escapeHtml(g.nombre)}</div>
+            <div class="inv-card-meta muted">${escapeHtml(meta)}</div>
+          </div>
+          <button class="btn btn-ghost inv-card-remove" data-remove="${escapeHtml(g.id)}" type="button">${escapeHtml(t('inv.card.quitar'))}</button>
+        </div>
+        <div class="inv-card-pills">
+          <span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${ladoIcon(g.lado)}${escapeHtml(lado.label)}</span>
+          <span class="inv-pill inv-pill-outline" style="border-color:${lado.color};color:${lado.ink}">${escapeHtml(g.grupo)}</span>
+          ${menuEspecial ? `<span class="tag tag-accent">${icCubiertos()}${escapeHtml(g.menu)}</span>` : ''}
+        </div>
+        <div class="inv-card-inv">
+          <span class="inv-inv-state">${icSobre()}${escapeHtml(invLabel)}</span>
+          <button class="btn btn-ghost" data-nextinv="${escapeHtml(g.id)}" type="button">${escapeHtml(invAccion)}</button>
+        </div>
+        ${acompLinea ? `<div class="inv-card-acomp"><span class="inv-card-acomp-lbl">${escapeHtml(t('inv.card.con'))}</span> ${escapeHtml(acompLinea)}</div>` : ''}
+        <div class="inv-card-mesa">
+          <span class="inv-card-mesa-lbl">${icMesa()}${escapeHtml(t('inv.card.mesa'))}</span>
+          <select class="input" data-mesa="${escapeHtml(g.id)}">
+            <option value=""${mesaId === '' ? ' selected' : ''}>${escapeHtml(t('inv.card.sinMesa'))}</option>
+            ${this._mesas.map((m) => `<option value="${escapeHtml(m.id)}"${m.id === mesaId ? ' selected' : ''}>${escapeHtml(m.nombre)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="seg inv-card-rsvp">
+          <button type="button" class="seg-opt" data-conf="${escapeHtml(g.id)}" data-set="confirmado" aria-selected="${g.rsvp === 'confirmado'}">${escapeHtml(t('inv.card.si'))}</button>
+          <button type="button" class="seg-opt" data-conf="${escapeHtml(g.id)}" data-set="pendiente" aria-selected="${g.rsvp === 'pendiente'}">${escapeHtml(t('inv.card.pendiente'))}</button>
+          <button type="button" class="seg-opt" data-conf="${escapeHtml(g.id)}" data-set="no" aria-selected="${g.rsvp === 'no'}">${escapeHtml(t('inv.card.no'))}</button>
+        </div>
+      </article>`;
+  }
+
+  /**
+   * @param {object[]} lista Invitados ya filtrados.
+   * @returns {string} Tabla de invitados (modo listado).
+   */
+  _tablaTpl(lista) {
+    return `
+      <div class="inv-table-wrap">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>${escapeHtml(t('inv.table.invitado'))}</th>
+              <th>${escapeHtml(t('inv.table.lado'))}</th>
+              <th>${escapeHtml(t('inv.table.circulo'))}</th>
+              <th>${escapeHtml(t('inv.table.menu'))}</th>
+              <th>${escapeHtml(t('inv.table.invitacion'))}</th>
+              <th>${escapeHtml(t('inv.table.acomp'))}</th>
+              <th>${escapeHtml(t('inv.table.mesa'))}</th>
+              <th>${escapeHtml(t('inv.table.confirmacion'))}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${lista.map((g) => this._rowTpl(g)).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+
+  /**
+   * @param {object} g
+   * @returns {string} Una fila de la tabla.
+   */
+  _rowTpl(g) {
+    const lado = ladoTokens(g.lado);
+    const plus = Number(g.plus) || 0;
+    const meta = g.nota ? g.nota : (plus ? t('inv.meta.acomp') : t('inv.meta.individual'));
+    const invEstado = g.invitacion || 'sin enviar';
+    const invLabel = t(ENUMS.invInvitacion[invEstado]);
+    const menuEspecial = g.menu && g.menu !== 'Estándar';
+    const mesaNombre = this._mesas.find((m) => m.id === g.mesa)?.nombre || t('inv.card.sinMesa');
+    const plusCorto = plus ? `+${plus}` : '—';
+    return `
+      <tr data-id="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}">
+        <td>
+          <div class="inv-table-who">
+            <span class="inv-avatar inv-avatar-sm" style="background:${lado.bg};color:${lado.ink};--card-lado:${lado.color}" aria-hidden="true">${escapeHtml(iniciales(g.nombre))}<span class="inv-avatar-status"></span></span>
+            <span class="inv-table-id">
+              <span class="inv-table-nombre">${escapeHtml(g.nombre)}</span>
+              <span class="inv-table-meta muted">${escapeHtml(meta)}</span>
+            </span>
+          </div>
+        </td>
+        <td><span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${ladoIcon(g.lado)}${escapeHtml(lado.label)}</span></td>
+        <td>${escapeHtml(g.grupo)}</td>
+        <td>${menuEspecial ? `<span class="tag tag-accent">${icCubiertos()}${escapeHtml(g.menu)}</span>` : `<span class="muted">${escapeHtml(g.menu || 'Estándar')}</span>`}</td>
+        <td><span class="inv-inv-state">${icSobre()}${escapeHtml(invLabel)}</span></td>
+        <td class="inv-table-num">${escapeHtml(plusCorto)}</td>
+        <td>${escapeHtml(mesaNombre)}</td>
+        <td>
+          <select class="input" data-rsvp="${escapeHtml(g.id)}">
+            <option value="confirmado"${g.rsvp === 'confirmado' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.confirmado))}</option>
+            <option value="pendiente"${g.rsvp === 'pendiente' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.pendiente))}</option>
+            <option value="no"${g.rsvp === 'no' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.no))}</option>
+          </select>
+        </td>
+        <td><button class="btn btn-ghost" data-remove="${escapeHtml(g.id)}" type="button">${escapeHtml(t('inv.card.quitar'))}</button></td>
+      </tr>`;
+  }
+
+  /** @returns {string} Estado vacío cuando ningún filtro coincide. */
+  get _emptyTpl() {
+    return `
+      <empty-state title="${escapeHtml(t('inv.empty.title'))}" desc="${escapeHtml(t('inv.empty.desc'))}"></empty-state>
+      <button class="btn btn-primary" id="empty-add" type="button">+&nbsp;&nbsp;${escapeHtml(t('inv.add'))}</button>`;
+  }
+
+  /** @returns {string} Diálogo de alta de invitado, dentro de modal-dialog. */
+  get _altaTpl() {
+    const d = this._draft;
+    const circulos = Array.from(new Set([...GRUPOS_ALTA, ...circulosDe(this._invitados)]));
+    const menus = menusDe(this._invitados);
+    return `
+      <modal-dialog id="add-dialog">
+        <div class="inv-add-grid">
+          <div class="field inv-add-span2">
+            <label>${escapeHtml(t('inv.add.nombre'))}</label>
+            <input class="input" id="add-nombre" placeholder="${escapeHtml(t('inv.add.nombre.ph'))}" value="${escapeHtml(d.nombre)}">
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.lado'))}</label>
+            <select class="input" id="add-lado">
+              <option value="novio"${d.lado === 'novio' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invLado.novio))}</option>
+              <option value="novia"${d.lado === 'novia' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invLado.novia))}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.circulo'))}</label>
+            <select class="input" id="add-grupo">
+              ${circulos.map((c) => `<option value="${escapeHtml(c)}"${c === d.grupo ? ' selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field inv-add-span2">
+            <label>${escapeHtml(t('inv.add.acomp'))}</label>
+            <textarea class="input" id="add-acomp" rows="2" placeholder="${escapeHtml(t('inv.add.acomp.ph'))}">${escapeHtml(d.acomp)}</textarea>
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.menu'))}</label>
+            <select class="input" id="add-menu">
+              ${menus.map((m) => `<option value="${escapeHtml(m)}"${m === d.menu ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.invitacion'))}</label>
+            <select class="input" id="add-invitacion">
+              ${ORDEN_INVITACION.map((k) => `<option value="${escapeHtml(k)}"${k === d.invitacion ? ' selected' : ''}>${escapeHtml(t(ENUMS.invInvitacion[k]))}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>${escapeHtml(t('inv.add.rsvp'))}</label>
+            <select class="input" id="add-rsvp">
+              ${ORDEN_RSVP_ALTA.map((k) => `<option value="${escapeHtml(k)}"${k === d.rsvp ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp[k]))}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field inv-add-span2">
+            <label>${escapeHtml(t('inv.add.nota'))}</label>
+            <input class="input" id="add-nota" placeholder="${escapeHtml(t('inv.add.nota.ph'))}" value="${escapeHtml(d.nota)}">
+          </div>
+        </div>
+        <div class="inv-add-foot">
+          <button class="btn btn-primary" id="add-save" type="button">${escapeHtml(t('inv.add.save'))}</button>
+        </div>
+      </modal-dialog>`;
+  }
+
+  afterRender() {
+    this.on(this.$('#f-q'), 'input', (e) => { this._q = e.target.value; this._apply(); });
+    this.on(this.$('#f-lado'), 'change', (e) => { this._lado = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#f-grupo'), 'change', (e) => { this._grupo = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#f-rsvp'), 'change', (e) => { this._rsvp = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#f-inv'), 'change', (e) => { this._inv = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#f-menu'), 'change', (e) => { this._menu = e.target.value; this._apply(false, null, true); });
+    this.on(this.$('#v-tarjetas'), 'click', () => this._setView('tarjetas'));
+    this.on(this.$('#v-lista'), 'click', () => this._setView('lista'));
+    this.on(this.$('#add-open'), 'click', () => this._openAdd());
+
+    // Contenedores estables: delegación una sola vez por render completo.
+    this.on(this.$('#chips'), 'click', (e) => this._onChipsClick(e));
+    this.on(this.$('#insights'), 'click', (e) => this._onInsightsClick(e));
+    this.on(this.$('#bulkbar'), 'click', (e) => this._onBulkClick(e));
+    this.on(this.$('#list'), 'click', (e) => this._onListClick(e));
+    this.on(this.$('#list'), 'change', (e) => this._onListChange(e));
+    this.on(this.$('#empty'), 'click', (e) => { if (e.target.closest('#empty-add')) this._openAdd(); });
+    this.on(this.$('#overlay'), 'click', (e) => this._onOverlayClick(e));
+    this.on(this.$('#overlay'), 'change', (e) => this._onOverlayChange(e));
+    this.on(this.$('#overlay'), 'input', (e) => this._onOverlayInput(e));
+
+    this._wireOverlayDialogs();
+    this._animateHero();
+    this._playStagger();
+  }
+
+  /** Reproduce (una vez) la entrada escalonada de las tarjetas de la lista. */
+  _playStagger() {
+    const list = this.$('#list');
+    if (!list) return;
+    list.classList.remove('inv-stagger');
+    // reflow para reiniciar la animación aunque la clase ya estuviera puesta
+    void list.offsetWidth;
+    list.classList.add('inv-stagger');
+    clearTimeout(this._staggerT);
+    this._staggerT = setTimeout(() => list.classList.remove('inv-stagger'), 1200);
+  }
+
+  /**
+   * Dibuja el anillo, rellena el medidor y hace subir los contadores. Respeta
+   * prefers-reduced-motion (aplica los valores finales al instante).
+   */
+  _animateHero() {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const arcs = this.$$('.inv-donut-arc');
+    const fill = this.$('.inv-meter-fill');
+    const setFinal = () => {
+      arcs.forEach((a) => { a.style.strokeDashoffset = '0'; });
+      if (fill) fill.style.width = `${fill.dataset.w || 0}%`;
+    };
+    this.$$('[data-count]').forEach((el) => {
+      const target = Number(el.dataset.count) || 0;
+      const suffix = el.dataset.suffix || '';
+      if (reduce) { el.textContent = `${target}${suffix}`; return; }
+      const dur = 720; const t0 = performance.now();
+      const step = (now) => {
+        const p = Math.min(1, (now - t0) / dur);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = `${Math.round(target * eased)}${suffix}`;
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+    if (reduce) { setFinal(); return; }
+    requestAnimationFrame(() => requestAnimationFrame(setFinal));
+  }
+
+  /**
+   * Re-renderiza solo stats/lista/vacío para que la búsqueda no pierda el
+   * foco del input (la barra de filtros nunca se vuelve a pintar entera).
+   */
+  _apply(refreshHero = false, flashId = null, stagger = false) {
+    const stats = this.$('#stats');
+    if (stats) stats.innerHTML = this._statsTpl;
+    const list = this.$('#list');
+    if (list) list.innerHTML = this._listTpl;
+    const empty = this.$('#empty');
+    if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
+    const chips = this.$('#chips');
+    if (chips) chips.innerHTML = this._chipsTpl;
+    const bulk = this.$('#bulkbar');
+    if (bulk) bulk.innerHTML = this._bulkbarTpl;
+    if (stagger) this._playStagger();
+    if (refreshHero) {
+      const hero = this.$('#hero');
+      if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
+      const insights = this.$('#insights');
+      if (insights) insights.innerHTML = this._insightsTpl;
+      this._maybeCelebrate();
+    }
+    if (flashId) {
+      const card = this.$(`.inv-card[data-id="${flashId}"]`);
+      if (card) { card.classList.add('inv-flash'); setTimeout(() => card.classList.remove('inv-flash'), 620); }
+    }
+  }
+
+  /**
+   * Actualiza SOLO la tarjeta indicada en el sitio (sin repintar toda la lista)
+   * y le hace flash + pulse; refresca hero, stats y la barra de su círculo. Así
+   * el feedback al confirmar se percibe nítido. Cae a `_apply` completo si la
+   * tarjeta no está en el DOM (p. ej. modo listado).
+   * @param {string} id
+   */
+  _flashCardUpdate(id) {
+    const card = this.$(`.inv-card[data-id="${id}"]`);
+    const g = this._invitados.find((x) => x.id === id);
+    if (!card || !g) { this._apply(true, id); return; }
+    const idx = Number(card.style.getPropertyValue('--i')) || 0;
+    const wasFocused = this.shadowRoot.activeElement === card;
+    card.outerHTML = this._cardTpl(g, idx);
+    const fresh = this.$(`.inv-card[data-id="${id}"]`);
+    if (fresh) {
+      fresh.classList.add('inv-flash');
+      setTimeout(() => fresh.classList.remove('inv-flash'), 620);
+      if (wasFocused) fresh.focus(); // conserva el foco para encadenar atajos c/p/n
+    }
+    const hero = this.$('#hero');
+    if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
+    const stats = this.$('#stats');
+    if (stats) stats.innerHTML = this._statsTpl;
+    const insights = this.$('#insights');
+    if (insights) insights.innerHTML = this._insightsTpl;
+    this._refreshGrupoBar(g.grupo);
+    this._maybeCelebrate();
+  }
+
+  /**
+   * Recalcula la barra de confirmación y el subtotal de un círculo tras un
+   * cambio, sobre los invitados actualmente visibles.
+   * @param {string} grupo
+   */
+  _refreshGrupoBar(grupo) {
+    const head = this.$(`.inv-grupo-head[data-grupo="${grupo}"]`);
+    if (!head) return;
+    const items = this._visible.filter((x) => x.grupo === grupo);
+    const conf = items.filter((x) => x.rsvp === 'confirmado').length;
+    const pax = items.reduce((a, x) => a + 1 + (Number(x.plus) || 0), 0);
+    const pct = items.length ? Math.round((conf / items.length) * 100) : 0;
+    const bar = head.querySelector('.inv-grupo-bar i');
+    if (bar) bar.style.width = `${pct}%`;
+    const sub = head.querySelector('.inv-grupo-sub');
+    if (sub) sub.textContent = t('inv.grupo.subtotal', { inv: items.length, pax, conf });
+  }
+
+  /** Repinta solo el overlay (alta) y recablea su diálogo. */
+  _paintOverlay() {
+    const overlay = this.$('#overlay');
+    if (overlay) overlay.innerHTML = this._addOpen ? this._altaTpl : '';
+    this._wireOverlayDialogs();
+  }
+
+  /** Abre/cierra el modal-dialog de alta y cablea su evento `close`. */
+  _wireOverlayDialogs() {
+    const addDialog = this.$('#add-dialog');
+    if (addDialog) {
+      addDialog.heading = t('inv.add.title');
+      this.on(addDialog, 'close', () => { this._addOpen = false; this._paintOverlay(); });
+      if (this._addOpen) addDialog.open();
+    }
+  }
+
+  /** @param {'tarjetas'|'lista'} view */
+  _setView(view) {
+    if (this._view === view) return;
+    this._view = view;
+    const tarjetas = this.$('#v-tarjetas');
+    const lista = this.$('#v-lista');
+    if (tarjetas) tarjetas.setAttribute('aria-selected', String(view === 'tarjetas'));
+    if (lista) lista.setAttribute('aria-selected', String(view === 'lista'));
+    this._apply(false, null, true);
+  }
+
+  /** @param {MouseEvent} e */
+  _onListClick(e) {
+    const rm = e.target.closest('[data-remove]');
+    if (rm) { this._removeInvitado(rm.dataset.remove); return; }
+    const next = e.target.closest('[data-nextinv]');
+    if (next) { this._cicloInvitacion(next.dataset.nextinv); return; }
+    const conf = e.target.closest('[data-conf]');
+    if (conf) this._setRsvp(conf.dataset.conf, conf.dataset.set);
+  }
+
+  /** @param {Event} e */
+  _onListChange(e) {
+    const selBox = e.target.closest('[data-sel]');
+    if (selBox) { this._toggleSelect(selBox.dataset.sel); return; }
+    const rsvpSel = e.target.closest('[data-rsvp]');
+    if (rsvpSel) { this._setRsvp(rsvpSel.dataset.rsvp, rsvpSel.value); return; }
+    const mesaSel = e.target.closest('[data-mesa]');
+    if (mesaSel) this._setMesa(mesaSel.dataset.mesa, mesaSel.value);
+  }
+
+  /** @param {MouseEvent} e */
+  _onChipsClick(e) {
+    const chip = e.target.closest('[data-clear]');
+    if (chip) this._clearFilter(chip.dataset.clear);
+  }
+
+  /**
+   * Restablece un filtro (o todos) a su valor por defecto y sincroniza el
+   * control correspondiente de la barra estática.
+   * @param {string} k Clave del filtro, o 'all'.
+   */
+  _clearFilter(k) {
+    const defs = { q: '', lado: 'Todos', grupo: 'Todos', rsvp: 'Todos', inv: 'Todas', menu: 'Todos' };
+    const sel = { q: '#f-q', lado: '#f-lado', grupo: '#f-grupo', rsvp: '#f-rsvp', inv: '#f-inv', menu: '#f-menu' };
+    const one = (key) => {
+      this[`_${key}`] = defs[key];
+      const el = this.$(sel[key]);
+      if (el) el.value = defs[key];
+    };
+    if (k === 'all') Object.keys(defs).forEach(one);
+    else if (k in defs) one(k);
+    this._apply(false, null, true);
+  }
+
+  // ---------- Selección múltiple y acciones en lote ----------
+
+  /** @param {string} id */
+  _toggleSelect(id) {
+    if (this._selected.has(id)) this._selected.delete(id);
+    else this._selected.add(id);
+    const card = this.$(`.inv-card[data-id="${id}"]`);
+    if (card) card.toggleAttribute('data-sel-on', this._selected.has(id));
+    const bulk = this.$('#bulkbar');
+    if (bulk) bulk.innerHTML = this._bulkbarTpl;
+  }
+
+  /** Vacía la selección y refleja el cambio en las tarjetas y la barra. */
+  _clearSelection() {
+    this._selected.clear();
+    this.$$('.inv-card[data-sel-on]').forEach((c) => c.removeAttribute('data-sel-on'));
+    this.$$('.inv-card-sel input:checked').forEach((c) => { c.checked = false; });
+    const bulk = this.$('#bulkbar');
+    if (bulk) bulk.innerHTML = this._bulkbarTpl;
+  }
+
+  /** @param {MouseEvent} e */
+  _onBulkClick(e) {
+    const b = e.target.closest('[data-bulk]');
+    if (!b) return;
+    const a = b.dataset.bulk;
+    if (a === 'clear') this._clearSelection();
+    else if (a === 'remove') this._bulkRemove();
+    else this._bulkRsvp(a);
+  }
+
+  /**
+   * Fija el mismo RSVP a todos los seleccionados.
+   * @param {string} rsvp
+   */
+  _bulkRsvp(rsvp) {
+    const ids = [...this._selected];
+    ids.forEach((id) => {
+      const g = this._invitados.find((x) => x.id === id);
+      if (g) this._syncInvitado(invitadosRepo.upsert({ ...g, rsvp }));
+    });
+    this._selected.clear();
+    this._apply(true);
+  }
+
+  /** Quita todos los seleccionados, con opción de deshacer. */
+  _bulkRemove() {
+    const snap = [...this._selected].map((id) => this._invitados.find((x) => x.id === id)).filter(Boolean).map((g) => ({ ...g }));
+    if (!snap.length) return;
+    snap.forEach((g) => invitadosRepo.remove(g.id));
+    const ids = new Set(snap.map((g) => g.id));
+    this._invitados = this._invitados.filter((x) => !ids.has(x.id));
+    this._selected.clear();
+    this._apply(true);
+    this._toast('inv.bulk.quitados', { n: snap.length }, {
+      actionLabel: t('inv.toast.deshacer'),
+      onAction: () => { snap.forEach((g) => this._syncInvitado(invitadosRepo.upsert({ ...g }))); this._apply(true); },
+    });
+  }
+
+  // ---------- Insights accionables ----------
+
+  /** @param {MouseEvent} e */
+  _onInsightsClick(e) {
+    const b = e.target.closest('[data-insight]');
+    if (!b) return;
+    const map = {
+      sinEnviar: () => { this._inv = 'sin enviar'; this._syncSelect('#f-inv', 'sin enviar'); },
+      pendientes: () => { this._rsvp = 'pendiente'; this._syncSelect('#f-rsvp', 'pendiente'); },
+      especiales: () => { this._menu = 'especiales'; this._syncSelect('#f-menu', 'especiales'); },
+    };
+    (map[b.dataset.insight] || (() => {}))();
+    this._apply(false, null, true);
+  }
+
+  /**
+   * @param {string} sel Selector del control.
+   * @param {string} value
+   */
+  _syncSelect(sel, value) { const el = this.$(sel); if (el) el.value = value; }
+
+  // ---------- Celebración al 100% confirmado ----------
+
+  /** Lanza un destello de celebración la primera vez que todos confirman. */
+  _maybeCelebrate() {
+    const total = this._invitados.length;
+    const conf = this._invitados.filter((g) => g.rsvp === 'confirmado').length;
+    const complete = total > 0 && conf === total;
+    if (complete && !this._wasComplete) { this._confetti(); this._toast('inv.celebrate'); }
+    this._wasComplete = complete;
+  }
+
+  /** Confeti sobrio sobre el donut del hero (respeta prefers-reduced-motion). */
+  _confetti() {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const host = this.$('#confetti');
+    if (!host) return;
+    const colors = ['var(--rsvp-si-dot)', 'var(--color-accent)', 'var(--lado-novia)', 'var(--lado-novio)'];
+    const frag = [];
+    for (let i = 0; i < 16; i++) {
+      const x = (Math.random() * 2 - 1) * 120;
+      const y = -60 - Math.random() * 90;
+      const rot = (Math.random() * 2 - 1) * 240;
+      const delay = Math.random() * 120;
+      frag.push(`<span class="inv-confetti-bit" style="--x:${x.toFixed(0)}px;--y:${y.toFixed(0)}px;--r:${rot.toFixed(0)}deg;animation-delay:${delay.toFixed(0)}ms;background:${colors[i % colors.length]}"></span>`);
+    }
+    host.innerHTML = frag.join('');
+    clearTimeout(this._confettiT);
+    this._confettiT = setTimeout(() => { host.innerHTML = ''; }, 1400);
+  }
+
+  /** @param {MouseEvent} e */
+  _onOverlayClick(e) {
+    if (e.target.closest('#add-save')) this._saveDraft();
+  }
+
+  /** @param {Event} e */
+  _onOverlayChange(e) {
+    if (String(e.target.id).startsWith('add-')) this._updateDraftField(e.target);
+  }
+
+  /** @param {Event} e */
+  _onOverlayInput(e) {
+    if (String(e.target.id).startsWith('add-')) this._updateDraftField(e.target);
+  }
+
+  // ---------- Acciones sobre la lista ----------
+
+  /**
+   * @param {string} id
+   * @param {string} rsvp
+   */
+  _setRsvp(id, rsvp) {
+    const g = this._invitados.find((x) => x.id === id);
+    if (!g) return;
+    this._syncInvitado(invitadosRepo.upsert({ ...g, rsvp }));
+    // Si hay filtro de confirmación, la tarjeta puede descolgarse: repintado completo.
+    if (this._rsvp !== 'Todos' || this._view === 'lista') this._apply(true, id);
+    else this._flashCardUpdate(id);
+  }
+
+  /**
+   * @param {string} id
+   * @param {string} mesaId
+   */
+  _setMesa(id, mesaId) {
+    const g = this._invitados.find((x) => x.id === id);
+    if (!g) return;
+    this._syncInvitado(invitadosRepo.upsert({ ...g, mesa: mesaId || null }));
+    this._apply(false);
+  }
+
+  /** @param {string} id */
+  _cicloInvitacion(id) {
+    const g = this._invitados.find((x) => x.id === id);
+    if (!g) return;
+    const invitacion = siguienteInvitacion(g.invitacion);
+    this._syncInvitado(invitadosRepo.upsert({ ...g, invitacion }));
+    if (this._inv !== 'Todas' || this._view === 'lista') this._apply(true, id);
+    else this._flashCardUpdate(id);
+  }
+
+  /** @param {string} id */
+  _removeInvitado(id) {
+    const g = this._invitados.find((x) => x.id === id);
+    if (!g) return;
+    const snapshot = { ...g };
+    invitadosRepo.remove(id);
+    this._invitados = this._invitados.filter((x) => x.id !== id);
+    this._selected.delete(id);
+    this._apply(true);
+    this._toast('inv.toast.quitado', { nombre: g.nombre }, {
+      actionLabel: t('inv.toast.deshacer'),
+      onAction: () => this._undoRemove(snapshot),
+    });
+  }
+
+  /** @param {object} g Invitado a restaurar. */
+  _undoRemove(g) {
+    this._syncInvitado(invitadosRepo.upsert({ ...g }));
+    this._apply(true);
+    this._toast('inv.toast.restaurado', { nombre: g.nombre });
+  }
+
+  /**
+   * Sustituye (o añade) un invitado en la copia local tras persistirlo.
+   * @param {object} updated
+   */
+  _syncInvitado(updated) {
+    const idx = this._invitados.findIndex((x) => x.id === updated.id);
+    if (idx >= 0) this._invitados[idx] = updated;
+    else this._invitados.push(updated);
+  }
+
+  // ---------- Alta de invitado ----------
+
+  _openAdd() {
+    this._draft = draftVacio();
+    this._addOpen = true;
+    this._paintOverlay();
+  }
+
+  /** @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} el */
+  _updateDraftField(el) {
+    const map = {
+      'add-nombre': 'nombre', 'add-lado': 'lado', 'add-grupo': 'grupo', 'add-acomp': 'acomp',
+      'add-menu': 'menu', 'add-invitacion': 'invitacion', 'add-rsvp': 'rsvp', 'add-nota': 'nota',
+    };
+    const key = map[el.id];
+    if (key) this._draft[key] = el.value;
+  }
+
+  _saveDraft() {
+    const d = this._draft;
+    const nombre = (d.nombre || '').trim();
+    if (!nombre) { this._toast('inv.add.needName'); return; }
+    const acomp = parseAcomp(d.acomp);
+    const created = invitadosRepo.upsert({
+      nombre,
+      lado: d.lado,
+      grupo: d.grupo,
+      rsvp: d.rsvp,
+      plus: acomp.length,
+      acompanantes: acomp,
+      menu: d.menu,
+      invitacion: d.invitacion,
+      nota: (d.nota || '').trim(),
+    });
+    this._invitados.unshift(created);
+    this._addOpen = false;
+    this._toast('inv.toast.creado', { nombre: created.nombre });
+    this._apply(true);
+    this._paintOverlay();
+  }
+
+  // ---------- Toast ----------
+
+  /**
+   * Muestra un aviso breve reutilizando el primitivo app-toast.
+   * @param {string} key Clave i18n.
+   * @param {Record<string, string|number>} [vars]
+   */
+  _toast(key, vars, opts) {
+    const el = this.$('#toast');
+    if (el && typeof el.show === 'function') el.show(t(key, vars), opts);
+  }
+}
+
+customElements.define('invitados-view', InvitadosView);

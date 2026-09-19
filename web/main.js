@@ -1,4 +1,5 @@
 import './js/components/views/finca-view/finca-view.js';
+import './js/components/views/invitados-view/invitados-view.js';
 import { t, setLang, getLang } from './js/i18n/index.js';
 import { configRepo, ensureSeeded } from './js/core/repos.js';
 import { escapeHtml } from './js/core/escape-html.js';
