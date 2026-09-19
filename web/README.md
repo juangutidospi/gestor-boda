@@ -36,7 +36,13 @@ Abrir http://localhost:8080/test/index.html — deben salir todas las suites en 
   asignación de mesa, acompañantes y alta de invitado. Un solo componente
   `views/invitados-view/invitados-view.js` + su `.css.js`; lógica pura en `invitados-calc.js`.
   Colores de lado/rsvp por tokens (`--lado-*`, `--rsvp-*`).
-- Resto de vistas (Salón, Proveedores, Presupuesto, Timing): próximas fases.
+- **Proveedores** (Fase 3, implementada): quién falta y quién está contratado. 4 stats
+  (contratados, comprometido, señales, categorías cubiertas), filtros (categoría, estado,
+  búsqueda), chips de "categorías por cubrir", tarjetas con precio/señal y acciones
+  (editar, eliminar con deshacer, contratar), y alta/edición. Un solo componente
+  `views/proveedores-view/proveedores-view.js`; lógica pura en `proveedores-calc.js`;
+  formato monetario compartido en `core/money.js`.
+- Resto de vistas (Salón, Presupuesto, Timing): próximas fases.
 
 ## Imágenes
 
