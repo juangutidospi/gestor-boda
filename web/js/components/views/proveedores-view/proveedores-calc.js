@@ -81,4 +81,62 @@ export function chipsCategorias(provs, categorias) {
   }));
 }
 
+/** Pasos del checklist de contratación, en orden. */
+export const CHECKLIST_STEPS = ['presupuesto', 'senal', 'contrato', 'confirmado'];
+
+/**
+ * Checklist de contratación de un proveedor: usa lo guardado y, si falta, deriva del
+ * estado (presupuesto recibido / señal pagada / contrato firmado / confirmado día D).
+ * @param {object} p
+ * @returns {{presupuesto:boolean, senal:boolean, contrato:boolean, confirmado:boolean}}
+ */
+export function checklistDe(p) {
+  const c = p.checklist || {};
+  const val = (k, fallback) => (typeof c[k] === 'boolean' ? c[k] : fallback);
+  return {
+    presupuesto: val('presupuesto', p.estado === 'presupuesto' || p.estado === 'contratado'),
+    senal: val('senal', Number(p.senal) > 0),
+    contrato: val('contrato', p.estado === 'contratado'),
+    confirmado: val('confirmado', false),
+  };
+}
+
+/**
+ * Progreso del checklist (pasos hechos / total).
+ * @param {object} p
+ * @returns {{done:number, total:number}}
+ */
+export function checklistProgreso(p) {
+  const c = checklistDe(p);
+  return { done: CHECKLIST_STEPS.filter((k) => c[k]).length, total: CHECKLIST_STEPS.length };
+}
+
+/**
+ * Timeline de pagos pendientes: por cada contratado con saldo (precio − señal) > 0, una
+ * entrada con su importe y fecha de pago. Ordenado por fecha (los sin fecha, al final).
+ * @param {object[]} provs
+ * @returns {{entradas:Array<{id,nombre,categoria,importe:number,fecha:string|null}>, totalPendiente:number, totalPagado:number}}
+ */
+export function timelinePagos(provs) {
+  const contratados = provs.filter((p) => p.estado === 'contratado');
+  const entradas = contratados
+    .map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      categoria: p.categoria,
+      importe: Math.max(0, (Number(p.precio) || 0) - (Number(p.senal) || 0)),
+      fecha: p.fechaPago || null,
+    }))
+    .filter((e) => e.importe > 0)
+    .sort((a, b) => {
+      if (a.fecha && b.fecha) return a.fecha.localeCompare(b.fecha);
+      if (a.fecha) return -1;
+      if (b.fecha) return 1;
+      return 0;
+    });
+  const totalPendiente = entradas.reduce((a, e) => a + e.importe, 0);
+  const totalPagado = provs.reduce((a, p) => a + (Number(p.senal) || 0), 0);
+  return { entradas, totalPendiente, totalPagado };
+}
+
 export { eur, eurK };
