@@ -36,10 +36,17 @@ Abrir http://localhost:8080/test/index.html — deben salir todas las suites en 
   asignación de mesa, acompañantes y alta de invitado. Un solo componente
   `views/invitados-view/invitados-view.js` + su `.css.js`; lógica pura en `invitados-calc.js`.
   Colores de lado/rsvp por tokens (`--lado-*`, `--rsvp-*`).
-- **Proveedores** (Fase 3, implementada): quién falta y quién está contratado. 4 stats
-  (contratados, comprometido, señales, categorías cubiertas), filtros (categoría, estado,
-  búsqueda), chips de "categorías por cubrir", tarjetas con precio/señal y acciones
-  (editar, eliminar con deshacer, contratar), y alta/edición. Un solo componente
+- **Proveedores** (Fase 3, implementada): quién falta y quién está contratado. Hero con
+  donut de cobertura y medidor de gasto (comprometido / límite / señal / **saldo pendiente**),
+  4 stats (contratados, comprometido, señales, categorías cubiertas), insights accionables,
+  filtros (categoría, estado, búsqueda), chips de "categorías por cubrir", tarjetas con
+  precio/señal y acciones (editar, eliminar con deshacer, contratar). Las contratadas tienen
+  fondo verde suave y una **barra de señal pagada** (% del precio, cuánto falta). El **badge
+  es un menú rápido** para cambiar de estado sin abrir el modal. Cada card lleva un
+  **monograma** de su categoría. **Orden configurable** (categoría, precio, señal, nombre,
+  estado) y **comparador por categoría** (tabla lado a lado con precio/señal/pendiente/
+  contacto/notas y el más barato resaltado) cuando hay ≥2 proveedores. **Atajos**: `/` buscar,
+  `N` alta, `Esc` cierra el menú. Un solo componente
   `views/proveedores-view/proveedores-view.js`; lógica pura en `proveedores-calc.js`;
   formato monetario compartido en `core/money.js`.
 - Resto de vistas (Salón, Presupuesto, Timing): próximas fases.
