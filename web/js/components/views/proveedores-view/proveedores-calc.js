@@ -19,14 +19,31 @@ export function filtrar(provs, { q, categoria, estado }) {
   });
 }
 
+/** Prioridad de estados para ordenar (los cerrados primero). */
+export const ESTADO_ORDEN = ['contratado', 'presupuesto', 'contactado', 'pendiente', 'descartado'];
+
 /**
- * Copia ordenada por el orden de `categorias`.
+ * Copia ordenada según el criterio elegido.
  * @param {object[]} provs
- * @param {string[]} categorias
+ * @param {string[]} categorias Orden natural de categorías (para 'categoria').
+ * @param {'categoria'|'precio'|'senal'|'nombre'|'estado'} [orden='categoria']
  * @returns {object[]}
  */
-export function ordenar(provs, categorias) {
-  return [...provs].sort((a, b) => categorias.indexOf(a.categoria) - categorias.indexOf(b.categoria));
+export function ordenar(provs, categorias, orden = 'categoria') {
+  const arr = [...provs];
+  switch (orden) {
+    case 'precio':
+      return arr.sort((a, b) => (Number(b.precio) || 0) - (Number(a.precio) || 0));
+    case 'senal':
+      return arr.sort((a, b) => (Number(b.senal) || 0) - (Number(a.senal) || 0));
+    case 'nombre':
+      return arr.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
+    case 'estado':
+      return arr.sort((a, b) => ESTADO_ORDEN.indexOf(a.estado) - ESTADO_ORDEN.indexOf(b.estado));
+    case 'categoria':
+    default:
+      return arr.sort((a, b) => categorias.indexOf(a.categoria) - categorias.indexOf(b.categoria));
+  }
 }
 
 /**

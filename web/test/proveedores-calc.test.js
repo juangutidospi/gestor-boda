@@ -18,6 +18,13 @@ register('proveedores/calc', () => {
   const ord = ordenar(provs, cats).map((x) => x.categoria);
   out.push({ name: 'ordenar por categorías', ok: ord[0] === 'Fotografía' && ord[2] === 'Flores', detail: ord.join(',') });
 
+  const ordPrecio = ordenar(provs, cats, 'precio').map((x) => x.id);
+  out.push({ name: 'ordenar por precio (mayor primero)', ok: ordPrecio[0] === 'a' && ordPrecio[2] === 'c', detail: ordPrecio.join(',') });
+  const ordNombre = ordenar([p({ id: 'z', nombre: 'Zeta' }), p({ id: 'a', nombre: 'Alfa' })], cats, 'nombre').map((x) => x.nombre);
+  out.push({ name: 'ordenar por nombre (A-Z)', ok: ordNombre[0] === 'Alfa', detail: ordNombre.join(',') });
+  const ordEstado = ordenar(provs, cats, 'estado').map((x) => x.estado);
+  out.push({ name: 'ordenar por estado (contratado primero)', ok: ordEstado[0] === 'contratado', detail: ordEstado.join(',') });
+
   const stats = calcularStats(provs, cats);
   out.push({ name: 'stats: 4', ok: stats.length === 4, detail: String(stats.length) });
   const comp = stats.find((s) => s.key === 'comprometido');
