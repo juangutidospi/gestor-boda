@@ -124,7 +124,78 @@ export const styles = css`
 .prov-card-cat { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-accent-700); }
 .prov-card-id h3 { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 22px; line-height: 1.15; }
 .prov-card-contacto { font-size: 12px; }
-.prov-card-top estado-badge { margin-left: auto; flex: 0 0 auto; }
+.prov-card-top .prov-badge-btn {
+  margin-left: auto; flex: 0 0 auto; display: inline-flex; padding: 2px; border: 0;
+  background: none; cursor: pointer; border-radius: 999px; transition: box-shadow .14s ease;
+}
+.prov-card-top .prov-badge-btn:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent); }
+.prov-card-top .prov-badge-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* ---------- Barra de señal pagada (tarjetas contratadas) ---------- */
+.prov-senal { display: flex; flex-direction: column; gap: 5px; }
+.prov-senal-bar { height: 6px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--color-text) 10%, transparent); }
+.prov-senal-fill { display: block; height: 100%; border-radius: 999px; background: var(--rsvp-si-dot); transition: width .5s cubic-bezier(.22,.61,.36,1); }
+.prov-senal-cap { font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* ---------- Popover de cambio rápido de estado ---------- */
+.prov-estado-pop[hidden] { display: none; }
+.prov-estado-pop {
+  position: absolute; z-index: 60; display: flex; flex-direction: column; gap: 2px;
+  min-width: 168px; padding: 6px; border-radius: 12px;
+  background: var(--color-surface); border: 1px solid var(--color-divider); box-shadow: var(--shadow-md);
+}
+.prov-estado-opt {
+  display: inline-flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 8px 10px; border: 0; border-radius: 8px; cursor: pointer;
+  font-family: var(--font-body); font-size: 13px; color: var(--color-text); background: none;
+}
+.prov-estado-opt:hover { background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface)); }
+.prov-estado-opt:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.prov-estado-opt.is-current { font-weight: 600; background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)); }
+.prov-estado-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.prov-estado-dot.is-contratado { background: var(--rsvp-si-dot); }
+.prov-estado-dot.is-presupuesto { background: var(--color-accent); }
+.prov-estado-dot.is-contactado { background: color-mix(in srgb, var(--color-text) 40%, transparent); }
+.prov-estado-dot.is-pendiente { background: var(--color-accent-300); }
+.prov-estado-dot.is-descartado { background: color-mix(in srgb, var(--color-text) 22%, transparent); }
+@media (prefers-reduced-motion: reduce) { .prov-senal-fill { transition: none; } }
+
+/* ---------- Monograma de categoría ---------- */
+.prov-card-top .prov-mono {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-heading); font-weight: 600; font-size: 15px; letter-spacing: .02em;
+  background: var(--color-accent-100); color: var(--color-accent-700);
+}
+.prov-card[data-estado="contratado"] .prov-mono {
+  background: color-mix(in srgb, var(--rsvp-si-dot) 16%, transparent); color: var(--rsvp-si-dot);
+}
+
+/* ---------- Botón comparar en la tarjeta ---------- */
+.prov-compare-btn { color: var(--color-accent-700); }
+
+/* ---------- Comparador por categoría (tabla en modal) ---------- */
+.prov-compare-wrap { overflow-x: auto; padding: var(--space-2) 0 var(--space-4); }
+.prov-compare { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 13px; }
+.prov-compare th, .prov-compare td {
+  text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--color-divider); vertical-align: top;
+}
+.prov-compare thead th {
+  font-family: var(--font-heading); font-weight: 600; font-size: 15px; border-bottom: 2px solid var(--color-divider); white-space: nowrap;
+}
+.prov-compare thead th.is-contratado { color: var(--rsvp-si-dot); }
+.prov-compare tbody th[scope="row"] {
+  font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); font-weight: 600; white-space: nowrap;
+}
+.prov-compare th[scope="row"], .prov-compare thead th:first-child {
+  position: sticky; left: 0; background: var(--color-surface); z-index: 1;
+}
+.prov-compare .prov-cmp-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prov-compare .prov-cmp-num.is-best { color: var(--rsvp-si-dot); font-weight: 600; }
+.prov-cmp-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 10px;
+  background: var(--rsvp-si-bg); color: var(--rsvp-si-dot); border: 1px solid var(--rsvp-si-line);
+}
 .prov-card-panel {
   display: flex; align-items: baseline; gap: var(--space-3);
   background: var(--color-accent-100); border-radius: 12px; padding: 10px 12px;
