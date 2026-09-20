@@ -10,9 +10,12 @@ export const styles = css`
 .page-head { padding-top: var(--space-6); }
 
 /* ---------- Cabecera con el input de límite ---------- */
-.pres-head { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; }
-.pres-head-txt { flex: 1; min-width: 260px; }
-.pres-limite { width: 210px; margin-bottom: 0; }
+/* Fila: el texto ocupa el ancho a la izquierda y el límite queda a la derecha.
+   (Sobrescribe el flex-direction:column del .page-head base.) */
+.pres-head { flex-direction: row; flex-wrap: wrap; gap: var(--space-6); align-items: flex-end; }
+.pres-head-txt { flex: 1 1 320px; min-width: 260px; display: flex; flex-direction: column; gap: 2px; }
+.pres-head-txt p { margin: 0; max-width: 52ch; }
+.pres-limite { flex: 0 0 auto; width: 240px; margin-bottom: 0; }
 
 /* ---------- Tarjeta de resumen ---------- */
 .pres-resumen {
