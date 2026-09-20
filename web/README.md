@@ -46,9 +46,16 @@ Abrir http://localhost:8080/test/index.html — deben salir todas las suites en 
   **monograma** de su categoría. **Orden configurable** (categoría, precio, señal, nombre,
   estado) y **comparador por categoría** (tabla lado a lado con precio/señal/pendiente/
   contacto/notas y el más barato resaltado) cuando hay ≥2 proveedores. **Atajos**: `/` buscar,
-  `N` alta, `Esc` cierra el menú. Un solo componente
-  `views/proveedores-view/proveedores-view.js`; lógica pura en `proveedores-calc.js`;
-  formato monetario compartido en `core/money.js`.
+  `N` alta, `Esc` cierra el menú.
+  **Tablero Kanban** (toggle Rejilla / Tablero) con columnas por estado y **arrastrar y
+  soltar** para mover un proveedor de estado. **Selección múltiple** con barra flotante de
+  acciones en lote (contratar / descartar / eliminar). **Ficha en drawer** con datos, fecha
+  de pago, próximo paso y un **checklist de contratación** (presupuesto recibido / señal
+  pagada / contrato firmado / confirmado día D) cuyo progreso se ve en la tarjeta. Panel de
+  **próximos pagos** (timeline por fecha con el total pendiente). Un solo componente
+  `views/proveedores-view/proveedores-view.js`; lógica pura en `proveedores-calc.js`
+  (incluye `checklistDe`, `checklistProgreso`, `timelinePagos`); formato monetario
+  compartido en `core/money.js`.
 - Resto de vistas (Salón, Presupuesto, Timing): próximas fases.
 
 ## Imágenes
