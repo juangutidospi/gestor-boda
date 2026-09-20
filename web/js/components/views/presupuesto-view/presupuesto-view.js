@@ -178,8 +178,13 @@ export class PresupuestoView extends AppElement {
   /** Sube los contadores y rellena la barra apilada (respeta prefers-reduced-motion). */
   _animate() {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // Barra: reflow síncrono para commitear el 0% y disparar la transición CSS. El
+    // estado final no depende de requestAnimationFrame (que se pausa en pestañas de fondo).
     const segs = this.$$('.pres-bar-seg');
-    const setBar = () => segs.forEach((s) => { s.style.width = `${s.dataset.w || 0}%`; });
+    segs.forEach((s) => { s.style.width = '0%'; });
+    void this.offsetWidth;
+    segs.forEach((s) => { s.style.width = `${s.dataset.w || 0}%`; });
+    // Contadores: rAF con easing; la plantilla ya trae el valor final como fallback.
     this.$$('[data-count]').forEach((el) => {
       const target = Number(el.dataset.count) || 0;
       const fmt = (v) => (v < 0 ? `-${eur(Math.abs(v))}` : eur(v));
@@ -192,8 +197,6 @@ export class PresupuestoView extends AppElement {
       };
       requestAnimationFrame(step);
     });
-    if (reduce) { setBar(); return; }
-    requestAnimationFrame(() => requestAnimationFrame(setBar));
   }
 
   /** Confeti sobrio la primera vez que se pasa de estar por encima a caber en el límite. */
