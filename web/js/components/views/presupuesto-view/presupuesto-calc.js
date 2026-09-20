@@ -55,7 +55,7 @@ export function calcularPresupuesto({ fincas = [], proveedores = [], invitados =
     ? [
       { concepto: R(elegida.nombre), detalle: K('pres.finca.banquete', { inv }), importe: eur(fincaCoste) },
       { concepto: K('pres.finca.senal'), detalle: K('pres.finca.senal.det'), importe: eur(fincaCoste * 0.25) },
-      { concepto: K('pres.finca.porInv'), detalle: K('pres.finca.porInv.det', { menu: elegida.menu, alquiler: elegida.alquiler ? 1 : 0 }), importe: inv ? eur(coste(elegida, inv) / inv) : '—' },
+      { concepto: K('pres.finca.porInv'), detalle: elegida.alquiler ? K('pres.finca.porInv.detAlq', { menu: elegida.menu }) : K('pres.finca.porInv.det', { menu: elegida.menu }), importe: inv ? eur(coste(elegida, inv) / inv) : '—' },
     ]
     : [
       { concepto: K('pres.finca.sinElegir'), detalle: K('pres.finca.sinElegir.det', { n: candidatas.length }), importe: '—' },
@@ -81,7 +81,7 @@ export function calcularPresupuesto({ fincas = [], proveedores = [], invitados =
     .sort((a, b) => porCat[b].total - porCat[a].total)
     .map((k) => ({
       concepto: R(k),
-      detalle: porCat[k].cont ? K('pres.prov.contratados', { n: porCat[k].cont }) : K('pres.prov.porConfirmar'),
+      detalle: porCat[k].cont ? K(porCat[k].cont > 1 ? 'pres.prov.contratados' : 'pres.prov.contratado', { n: porCat[k].cont }) : K('pres.prov.porConfirmar'),
       importe: porCat[k].total ? eur(porCat[k].total) : '—',
     }));
 
