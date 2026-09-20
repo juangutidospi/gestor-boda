@@ -49,7 +49,17 @@ Abrir http://localhost:8080/test/index.html — deben salir todas las suites en 
   `N` alta, `Esc` cierra el menú. Un solo componente
   `views/proveedores-view/proveedores-view.js`; lógica pura en `proveedores-calc.js`;
   formato monetario compartido en `core/money.js`.
-- Resto de vistas (Salón, Presupuesto, Timing): próximas fases.
+- **Presupuesto** (Fase 4, implementada): vista agregada (solo edita el límite; el resto
+  se calcula de finca elegida/candidatas, proveedores e invitados). Tarjeta resumen con
+  Total previsto, Margen disponible / Te pasas por, barra apilada (contratado / por
+  confirmar / fuera de presupuesto) y señales pagadas; chips de insight accionables
+  (margen o exceso, proveedores por confirmar → Proveedores, sin finca → Finca); y tres
+  bloques (Finca y banquete, Proveedores por categoría, Pagos y ratios). Premium:
+  contadores animados, barra animada y confeti al pasar a caber en el límite. Regla clave:
+  el catering es banquete, nunca cuenta en proveedores. Un solo componente
+  `views/presupuesto-view/presupuesto-view.js`; lógica pura en `presupuesto-calc.js`
+  (reutiliza `coste` de finca-calc, `pax` de invitados-calc y `money`).
+- Resto de vistas (Salón, Timing): próximas fases.
 
 ## Imágenes
 
