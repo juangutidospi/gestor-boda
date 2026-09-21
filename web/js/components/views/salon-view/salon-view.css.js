@@ -23,7 +23,7 @@ export const styles = css`
 
 /* ---------- Plano (ajustado a la altura de pantalla) ---------- */
 .sal-plano {
-  position: relative; width: 100%; height: min(58vh, 620px); min-height: 340px; max-height: 92vh;
+  position: relative; width: 100%; height: min(74vh, 760px); min-height: 440px; max-height: 92vh;
   overflow: hidden; resize: vertical;
   background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 20px;
   touch-action: none; box-shadow: 0 1px 3px color-mix(in srgb, var(--color-text) 8%, transparent);
