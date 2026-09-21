@@ -32,6 +32,10 @@ export class SalonView extends AppElement {
   _planoH = null;
   /** @type {ResizeObserver|null} */
   _ro = null;
+  /** Zoom y desplazamiento del lienzo. */
+  _zoom = 1;
+  _panX = 0;
+  _panY = 0;
 
   /** Público: lo llama el router al abrir la vista. */
   refresh() {
@@ -103,10 +107,19 @@ export class SalonView extends AppElement {
           <div class="sal-plano-vignette" aria-hidden="true"></div>
           <div class="sal-plano-inner1" aria-hidden="true"></div>
           <button class="btn btn-secondary sal-auto" id="sv-auto" type="button">${escapeHtml(t('salon.plano.auto'))}</button>
-          <div class="sal-presidencia">${escapeHtml(t('salon.plano.presidencia'))}</div>
-          <div class="sal-pista">${escapeHtml(t('salon.plano.pista'))}</div>
-          <div class="sal-barra">${escapeHtml(t('salon.plano.barra'))}</div>
-          ${this._mesas.map((m) => this._mesaTpl(m, confs)).join('')}
+          <div class="sal-zoom">
+            <button type="button" data-zoom="out" aria-label="−">−</button>
+            <button type="button" data-zoom="reset" class="sal-zoom-pct">${Math.round(this._zoom * 100)}%</button>
+            <button type="button" data-zoom="in" aria-label="+">+</button>
+          </div>
+          <div class="sal-canvas" id="canvas" style="transform:translate(${this._panX}px,${this._panY}px) scale(${this._zoom})">
+            <div class="sal-presidencia">${escapeHtml(t('salon.plano.presidencia'))}</div>
+            <div class="sal-pista">${escapeHtml(t('salon.plano.pista'))}</div>
+            <div class="sal-barra">${escapeHtml(t('salon.plano.barra'))}</div>
+            <div class="sal-guide sal-guide-v" id="guide-x" hidden></div>
+            <div class="sal-guide sal-guide-h" id="guide-y" hidden></div>
+            ${this._mesas.map((m) => this._mesaTpl(m, confs)).join('')}
+          </div>
         </div>
       </div>`;
   }
@@ -337,6 +350,7 @@ export class SalonView extends AppElement {
     this.on(this.$('#main'), 'dragleave', (e) => this._onGuestDragLeave(e));
     this.on(this.$('#main'), 'drop', (e) => this._onGuestDrop(e));
     this.on(this.$('#main'), 'dragend', () => this._onGuestDragEnd());
+    this.on(this.$('#main'), 'wheel', (e) => this._onWheel(e), { passive: false });
     this._observePlano();
   }
 
@@ -367,6 +381,16 @@ export class SalonView extends AppElement {
   _onMainClick(e) {
     if (e.target.closest('#sv-auto')) { this._autoOrganizar(); return; }
     if (e.target.closest('#sv-autosentar')) { this._autoSentar(); return; }
+    const zoom = e.target.closest('[data-zoom]');
+    if (zoom) {
+      const rect = this.$('#plano')?.getBoundingClientRect();
+      const cx = rect ? rect.width / 2 : null;
+      const cy = rect ? rect.height / 2 : null;
+      if (zoom.dataset.zoom === 'in') this._setZoom(this._zoom * 1.2, cx, cy);
+      else if (zoom.dataset.zoom === 'out') this._setZoom(this._zoom / 1.2, cx, cy);
+      else { this._zoom = 1; this._panX = 0; this._panY = 0; this._applyCanvasTransform(); }
+      return;
+    }
     if (e.target.closest('[data-deselect]')) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); return; }
     const unseat = e.target.closest('[data-unseat]');
     if (unseat) { this._setMesaGuest(unseat.dataset.unseat, null); return; }
@@ -397,32 +421,46 @@ export class SalonView extends AppElement {
 
   // ---------- Arrastre de mesa (Pointer Events) ----------
 
-  /** @param {PointerEvent} e */
+  /** @param {PointerEvent} e Arrastra una mesa, o desplaza (pan) el fondo del lienzo. */
   _onPointerDown(e) {
     const mesa = e.target.closest('[data-mesa]');
-    if (!mesa) return;
+    if (mesa) { this._startMesaDrag(e, mesa); return; }
+    if (e.target.closest('.sal-av, button, input, select, a')) return;
+    if (e.target.closest('#canvas') || e.target.closest('#plano')) this._startPan(e);
+  }
+
+  /** @param {PointerEvent} e @param {HTMLElement} mesa Arrastre de mesa con corrección de zoom y guías de alineación. */
+  _startMesaDrag(e, mesa) {
     const id = mesa.dataset.mesa;
     this._mesaSel = id;
     this._dragMesaId = id;
-    // Repinta el panel de la mesa seleccionada (sin reconstruir todo el plano).
     this._refreshMesaPanel();
     this._markSelected(id);
     const box = this.$('#plano');
     if (!box) return;
     const rect = box.getBoundingClientRect();
     const wrap = mesa.closest('.sal-mesa-wrap');
+    const gx = this.$('#guide-x');
+    const gy = this.$('#guide-y');
+    const otras = this._mesas.filter((m) => m.id !== id);
     let moved = false;
     const snap = (v) => Math.round(v * 2) / 2;
     const move = (ev) => {
       moved = true;
-      const x = snap(Math.min(94, Math.max(6, ((ev.clientX - rect.left) / rect.width) * 100)));
-      const y = snap(Math.min(92, Math.max(8, ((ev.clientY - rect.top) / rect.height) * 100)));
+      let x = snap(Math.min(94, Math.max(6, ((ev.clientX - rect.left - this._panX) / (rect.width * this._zoom)) * 100)));
+      let y = snap(Math.min(92, Math.max(8, ((ev.clientY - rect.top - this._panY) / (rect.height * this._zoom)) * 100)));
+      const nearX = otras.find((m) => Math.abs((m.x ?? 50) - x) < 1.5);
+      const nearY = otras.find((m) => Math.abs((m.y ?? 50) - y) < 1.5);
+      if (nearX) { x = nearX.x; if (gx) { gx.style.left = `${x}%`; gx.hidden = false; } } else if (gx) gx.hidden = true;
+      if (nearY) { y = nearY.y; if (gy) { gy.style.top = `${y}%`; gy.hidden = false; } } else if (gy) gy.hidden = true;
       if (wrap) { wrap.style.left = `${x}%`; wrap.style.top = `${y}%`; }
       this._pendingPos = { id, x, y };
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      if (gx) gx.hidden = true;
+      if (gy) gy.hidden = true;
       if (moved && this._pendingPos && this._pendingPos.id === id) {
         this._setMesa(id, { x: this._pendingPos.x, y: this._pendingPos.y }, true);
       }
@@ -431,6 +469,55 @@ export class SalonView extends AppElement {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+  }
+
+  /** @param {PointerEvent} e Desplaza el lienzo (pan) arrastrando el fondo. */
+  _startPan(e) {
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const px = this._panX;
+    const py = this._panY;
+    const plano = this.$('#plano');
+    if (plano) plano.classList.add('is-panning');
+    const move = (ev) => {
+      this._panX = px + (ev.clientX - startX);
+      this._panY = py + (ev.clientY - startY);
+      this._applyCanvasTransform();
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (plano) plano.classList.remove('is-panning');
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** @param {WheelEvent} e Zoom hacia el cursor con la rueda. */
+  _onWheel(e) {
+    if (!e.target.closest('#plano')) return;
+    e.preventDefault();
+    const rect = this.$('#plano').getBoundingClientRect();
+    this._setZoom(this._zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  /** @param {number} z @param {number} [cx] @param {number} [cy] Ajusta el zoom manteniendo fijo el punto (cx,cy). */
+  _setZoom(z, cx, cy) {
+    const nz = Math.min(2.5, Math.max(0.5, z));
+    if (cx != null && cy != null) {
+      this._panX = cx - (cx - this._panX) * (nz / this._zoom);
+      this._panY = cy - (cy - this._panY) * (nz / this._zoom);
+    }
+    this._zoom = nz;
+    this._applyCanvasTransform();
+  }
+
+  /** Aplica el transform del lienzo (zoom + pan) y actualiza el % sin repintar. */
+  _applyCanvasTransform() {
+    const canvas = this.$('#canvas');
+    if (canvas) canvas.style.transform = `translate(${this._panX}px,${this._panY}px) scale(${this._zoom})`;
+    const pct = this.$('.sal-zoom-pct');
+    if (pct) pct.textContent = `${Math.round(this._zoom * 100)}%`;
   }
 
   /** Marca visualmente la mesa seleccionada sin repintar el plano entero. */

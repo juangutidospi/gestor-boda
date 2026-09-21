@@ -39,6 +39,22 @@ export const styles = css`
 .sal-plano-grid { position: absolute; inset: 0; background-image: radial-gradient(var(--color-divider) 1px, transparent 1px); background-size: 28px 28px; opacity: .45; }
 .sal-plano-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 35%, color-mix(in srgb, var(--color-surface) 90%, transparent), color-mix(in srgb, var(--color-accent-100) 55%, transparent)); }
 .sal-plano-inner1 { position: absolute; inset: 14px; border: 1px solid var(--color-divider); border-radius: 14px; pointer-events: none; }
+.sal-plano.is-panning { cursor: grabbing; }
+
+/* Capa de lienzo (zoom + desplazamiento) */
+.sal-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
+
+/* Controles de zoom */
+.sal-zoom { position: absolute; right: 16px; top: 16px; z-index: 6; display: flex; align-items: center; gap: 2px; background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 999px; padding: 2px; box-shadow: var(--shadow-sm); }
+.sal-zoom button { border: 0; background: none; cursor: pointer; font-family: var(--font-body); font-size: 15px; color: var(--color-text); width: 26px; height: 26px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
+.sal-zoom button:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
+.sal-zoom .sal-zoom-pct { width: auto; padding: 0 8px; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* Guías de alineación al mover mesas */
+.sal-guide { position: absolute; z-index: 1; background: var(--color-accent); opacity: .5; pointer-events: none; }
+.sal-guide-v { top: 0; bottom: 0; width: 1px; }
+.sal-guide-h { left: 0; right: 0; height: 1px; }
+.sal-guide[hidden] { display: none; }
 .sal-auto { position: absolute; left: 22px; top: 22px; z-index: 4; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 12px; }
 .sal-presidencia {
   position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 2;
