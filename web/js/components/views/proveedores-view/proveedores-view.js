@@ -1,16 +1,22 @@
 import { AppElement } from '../../../core/AppElement.js';
 import { escapeHtml } from '../../../core/escape-html.js';
 import { styles } from './proveedores-view.css.js';
-import { t } from '../../../i18n/index.js';
+import { t, getLang } from '../../../i18n/index.js';
 import { ENUMS } from '../../../core/enums.js';
 import {
   filtrar, ordenar, calcularStats, chipsCategorias, eur, eurK,
+  checklistDe, checklistProgreso, CHECKLIST_STEPS, timelinePagos,
 } from './proveedores-calc.js';
 import { ensureSeeded, proveedoresRepo, listaCategorias, presupuestoRepo } from '../../../core/repos.js';
 import '../../ui/modal-dialog/modal-dialog.js';
 import '../../ui/estado-badge/estado-badge.js';
 import '../../ui/empty-state/empty-state.js';
 import '../../ui/toast/toast.js';
+import '../../ui/drawer/drawer.js';
+import '../../ui/segmented-tabs/segmented-tabs.js';
+
+/** Columnas del tablero Kanban (estados en el flujo de contratación). */
+const TABLERO_COLS = ['pendiente', 'contactado', 'presupuesto', 'contratado', 'descartado'];
 
 /** Orden de los estados de proveedor ofrecidos al dar de alta o editar. */
 const ESTADOS_ALTA = ['pendiente', 'contactado', 'presupuesto', 'contratado', 'descartado'];
@@ -53,6 +59,14 @@ export class ProveedoresView extends AppElement {
   _limite = 0;
   /** Recuerda si ya estaban todas las categorías cubiertas (celebración una vez). */
   _wasFullyCovered = false;
+  /** Modo de vista: 'rejilla' | 'tablero' (Kanban). */
+  _vista = 'rejilla';
+  /** Ids seleccionados para acciones en lote. */
+  _selected = new Set();
+  /** Id del proveedor con la ficha (drawer) abierta, o null. */
+  _fichaId = null;
+  /** Panel de próximos pagos desplegado. */
+  _pagosOpen = false;
 
   /** Registra atajos de teclado y cierre del popover UNA sola vez. */
   connectedCallback() {
@@ -99,18 +113,32 @@ export class ProveedoresView extends AppElement {
         </div>
         <div id="hero">${this._heroTpl}</div>
         <div id="insights">${this._insightsTpl}</div>
+        <div id="pagos">${this._pagosTpl}</div>
         <div id="stats">${this._statsTpl}</div>
         ${this._filtersTpl}
         <section class="prov-chips-wrap" id="chips">${this._chipsTpl}</section>
-        <div id="grid" class="prov-grid">${this._gridTpl}</div>
-        <div id="empty">${this._visible.length ? '' : this._emptyTpl}</div>
+        <div class="prov-toolbar">
+          <segmented-tabs id="pf-vista"></segmented-tabs>
+        </div>
+        <div id="listing">${this._listingTpl}</div>
         <p class="prov-foot muted">${escapeHtml(t('prov.foot'))}</p>
         <div id="overlay">${this._overlayTpl}</div>
         <div id="compare">${this._compareTpl}</div>
         <div id="estado-pop" class="prov-estado-pop" role="menu" hidden></div>
+        <div id="bulkbar">${this._bulkbarTpl}</div>
+        <app-drawer id="ficha"></app-drawer>
         <div id="confetti" aria-hidden="true"></div>
         <app-toast id="toast"></app-toast>
       </div>`;
+  }
+
+  /** @returns {string} Listado: rejilla de tarjetas o tablero Kanban según `_vista`. */
+  get _listingTpl() {
+    if (this._vista === 'tablero') return this._boardTpl;
+    const cards = this._gridTpl;
+    return cards
+      ? `<div id="grid" class="prov-grid">${cards}</div>`
+      : `<div id="empty">${this._emptyTpl}</div>`;
   }
 
   /** @returns {string} Las cuatro tarjetas de estadística. */
@@ -286,18 +314,26 @@ export class ProveedoresView extends AppElement {
     const compareBtn = catCount >= 2 && p.estado !== 'descartado'
       ? `<button class="btn btn-ghost prov-compare-btn" data-compare="${escapeHtml(p.categoria)}" type="button">${escapeHtml(t('prov.card.comparar', { n: catCount }))}</button>`
       : '';
+    const selected = this._selected.has(p.id);
+    const prog = checklistProgreso(p);
     return `
-      <article class="prov-card" data-id="${escapeHtml(p.id)}" data-estado="${escapeHtml(p.estado)}" style="--i:${idx}">
+      <article class="prov-card${selected ? ' is-selected' : ''}" data-id="${escapeHtml(p.id)}" data-estado="${escapeHtml(p.estado)}" style="--i:${idx}">
         <div class="prov-card-top">
-          <span class="prov-mono" aria-hidden="true">${escapeHtml(this._monograma(p.categoria))}</span>
+          <label class="prov-sel">
+            <input type="checkbox" data-sel="${escapeHtml(p.id)}"${selected ? ' checked' : ''} aria-label="${escapeHtml(t('prov.bulk.seleccionar', { nombre: p.nombre }))}">
+          </label>
+          <button type="button" class="prov-mono" data-ficha="${escapeHtml(p.id)}" title="${escapeHtml(t('prov.ficha.abrir'))}">${escapeHtml(this._monograma(p.categoria))}</button>
           <div class="prov-card-id">
             <span class="prov-card-cat">${escapeHtml(p.categoria)}</span>
-            <h3>${escapeHtml(p.nombre)}</h3>
+            <h3><button type="button" class="prov-name-btn" data-ficha="${escapeHtml(p.id)}">${escapeHtml(p.nombre)}</button></h3>
             <span class="prov-card-contacto muted">${escapeHtml(contactoLinea)}</span>
           </div>
-          <button type="button" class="prov-badge-btn" data-badge="${escapeHtml(p.id)}" aria-label="${escapeHtml(t('prov.card.cambiarEstado'))}" aria-haspopup="menu">
-            <estado-badge class="prov-badge" data-kind="prov" data-value="${escapeHtml(p.estado)}"></estado-badge>
-          </button>
+          <div class="prov-card-tr">
+            ${prog.done ? `<span class="prov-check" title="${escapeHtml(t('prov.ficha.checklist'))}">✓ ${prog.done}/${prog.total}</span>` : ''}
+            <button type="button" class="prov-badge-btn" data-badge="${escapeHtml(p.id)}" aria-label="${escapeHtml(t('prov.card.cambiarEstado'))}" aria-haspopup="menu">
+              <estado-badge class="prov-badge" data-kind="prov" data-value="${escapeHtml(p.estado)}"></estado-badge>
+            </button>
+          </div>
         </div>
         <div class="prov-card-panel">
           <div><span class="prov-lbl">${escapeHtml(t('prov.card.precio'))}</span><span class="prov-val">${escapeHtml(precioLabel)}</span></div>
@@ -329,6 +365,152 @@ export class ProveedoresView extends AppElement {
       <div class="prov-senal">
         <div class="prov-senal-bar"><span class="prov-senal-fill" style="width:${pct}%"></span></div>
         <span class="prov-senal-cap muted">${escapeHtml(cap)}</span>
+      </div>`;
+  }
+
+  /** Formatea una fecha ISO (YYYY-MM-DD) al idioma activo. */
+  _fmtFecha(iso) {
+    if (!iso) return '';
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString(getLang() === 'en' ? 'en-GB' : 'es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  /** @returns {string} Panel plegable de próximos pagos (vacío si no hay saldo). */
+  get _pagosTpl() {
+    const { entradas, totalPendiente, totalPagado } = timelinePagos(this._provs);
+    if (!entradas.length) return '';
+    const list = this._pagosOpen
+      ? `<ul class="prov-pagos-list">
+          ${entradas.map((e) => `
+            <li class="prov-pago" data-ficha="${escapeHtml(e.id)}">
+              <span class="prov-pago-fecha">${e.fecha ? escapeHtml(this._fmtFecha(e.fecha)) : escapeHtml(t('prov.pagos.sinFecha'))}</span>
+              <span class="prov-pago-nombre">${escapeHtml(e.nombre)}<span class="muted"> · ${escapeHtml(e.categoria)}</span></span>
+              <span class="prov-pago-importe">${escapeHtml(eur(e.importe))}</span>
+            </li>`).join('')}
+        </ul>`
+      : '';
+    return `
+      <section class="prov-pagos${this._pagosOpen ? ' is-open' : ''}">
+        <button type="button" class="prov-pagos-head" data-pagos-toggle aria-expanded="${this._pagosOpen}">
+          <span class="prov-pagos-caret" aria-hidden="true">${this._pagosOpen ? '▾' : '▸'}</span>
+          <span class="prov-pagos-title">${escapeHtml(t('prov.pagos.title'))}</span>
+          <span class="prov-pagos-total">${escapeHtml(t('prov.pagos.total'))} <b>${escapeHtml(eur(totalPendiente))}</b></span>
+          <span class="prov-pagos-pagado muted">${escapeHtml(t('prov.pagos.pagado'))} ${escapeHtml(eur(totalPagado))}</span>
+        </button>
+        ${list}
+      </section>`;
+  }
+
+  /** @returns {string} Tablero Kanban: una columna por estado con tarjetas arrastrables. */
+  get _boardTpl() {
+    const base = ordenar(filtrar(this._provs, { q: this._q, categoria: this._categoria, estado: 'Todos' }), this._cats, this._orden);
+    const byCol = {};
+    TABLERO_COLS.forEach((c) => { byCol[c] = []; });
+    base.forEach((p) => { if (byCol[p.estado]) byCol[p.estado].push(p); });
+    return `
+      <div class="prov-board" id="board">
+        ${TABLERO_COLS.map((col) => `
+          <div class="prov-col" data-col="${col}">
+            <div class="prov-col-head">
+              <estado-badge class="prov-badge" data-kind="prov" data-value="${col}"></estado-badge>
+              <span class="prov-col-count">${byCol[col].length}</span>
+            </div>
+            <div class="prov-col-body" data-col-body="${col}">
+              ${byCol[col].map((p) => this._boardCardTpl(p)).join('')}
+            </div>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  /** @param {object} p @returns {string} Tarjeta compacta y arrastrable del tablero. */
+  _boardCardTpl(p) {
+    const prog = checklistProgreso(p);
+    const precio = Number(p.precio) ? eur(Number(p.precio)) : '—';
+    return `
+      <article class="prov-bcard" draggable="true" data-card="${escapeHtml(p.id)}" data-ficha="${escapeHtml(p.id)}">
+        <span class="prov-bcard-mono" aria-hidden="true">${escapeHtml(this._monograma(p.categoria))}</span>
+        <div class="prov-bcard-txt">
+          <div class="prov-bcard-nombre">${escapeHtml(p.nombre)}</div>
+          <div class="prov-bcard-meta muted">${escapeHtml(p.categoria)} · ${escapeHtml(precio)}</div>
+        </div>
+        ${prog.done ? `<span class="prov-check">✓ ${prog.done}/${prog.total}</span>` : ''}
+      </article>`;
+  }
+
+  /** @returns {string} Barra flotante de acciones en lote (vacía si no hay selección). */
+  get _bulkbarTpl() {
+    const n = this._selected.size;
+    if (!n) return '';
+    return `
+      <div class="prov-bulkbar" role="toolbar" aria-label="${escapeHtml(t('prov.bulk.sel', { n }))}">
+        <span class="prov-bulk-count">${escapeHtml(t('prov.bulk.sel', { n }))}</span>
+        <button class="btn btn-secondary" type="button" data-bulk="contratar">${escapeHtml(t('prov.bulk.contratar'))}</button>
+        <button class="btn btn-secondary" type="button" data-bulk="descartar">${escapeHtml(t('prov.bulk.descartar'))}</button>
+        <button class="btn btn-ghost" type="button" data-bulk="eliminar">${escapeHtml(t('prov.bulk.eliminar'))}</button>
+        <button class="btn btn-ghost" type="button" data-bulk="limpiar">${escapeHtml(t('prov.bulk.limpiar'))}</button>
+      </div>`;
+  }
+
+  /** Clave i18n del próximo paso de contratación, o null si está descartado/listo. */
+  _proximoPaso(p) {
+    if (p.estado === 'descartado') return null;
+    if (p.estado === 'pendiente') return 'prov.paso.buscar';
+    if (p.estado === 'contactado') return 'prov.paso.presupuesto';
+    if (p.estado === 'presupuesto') return 'prov.paso.contratar';
+    const c = checklistDe(p);
+    if (!c.senal) return 'prov.paso.senal';
+    if (!c.contrato) return 'prov.paso.contrato';
+    if (!c.confirmado) return 'prov.paso.confirmar';
+    return 'prov.paso.listo';
+  }
+
+  /** @param {object} p @returns {string} Contenido de la ficha (dentro del drawer). */
+  _fichaContentTpl(p) {
+    const c = checklistDe(p);
+    const prog = checklistProgreso(p);
+    const contacto = [p.contacto, p.telefono].filter(Boolean).join(' · ') || t('prov.card.sinContacto');
+    const precio = Number(p.precio) ? eur(Number(p.precio)) : t('prov.card.sinPresupuesto');
+    const senal = Number(p.senal) ? eur(Number(p.senal)) : '—';
+    const pendiente = p.estado === 'contratado' ? eur(Math.max(0, (Number(p.precio) || 0) - (Number(p.senal) || 0))) : '—';
+    const paso = this._proximoPaso(p);
+    const dato = (lbl, val) => `<div class="prov-ficha-dato"><span class="prov-lbl">${escapeHtml(lbl)}</span><span class="prov-ficha-val">${escapeHtml(val)}</span></div>`;
+    return `
+      <div class="prov-ficha" data-ficha-id="${escapeHtml(p.id)}">
+        <div class="prov-ficha-head">
+          <span class="prov-mono prov-ficha-mono" aria-hidden="true">${escapeHtml(this._monograma(p.categoria))}</span>
+          <div class="prov-ficha-head-txt">
+            <span class="prov-card-cat">${escapeHtml(p.categoria)}</span>
+            <span class="muted">${escapeHtml(contacto)}</span>
+          </div>
+          <estado-badge class="prov-badge" data-kind="prov" data-value="${escapeHtml(p.estado)}"></estado-badge>
+        </div>
+        <div class="prov-ficha-datos">
+          ${dato(t('prov.ficha.precio'), precio)}
+          ${dato(t('prov.ficha.senal'), senal)}
+          ${dato(t('prov.ficha.pendiente'), pendiente)}
+          ${p.fechaPago ? dato(t('prov.ficha.pago'), this._fmtFecha(p.fechaPago)) : ''}
+        </div>
+        ${paso ? `<div class="prov-ficha-paso"><span class="prov-lbl">${escapeHtml(t('prov.ficha.proximoPaso'))}</span><span class="prov-ficha-paso-txt">${escapeHtml(t(paso))}</span></div>` : ''}
+        <div class="prov-ficha-check">
+          <div class="prov-ficha-check-head">
+            <h5>${escapeHtml(t('prov.ficha.checklist'))}</h5>
+            <span class="prov-check">${escapeHtml(t('prov.ficha.progreso', { done: prog.done, total: prog.total }))}</span>
+          </div>
+          ${CHECKLIST_STEPS.map((k) => `
+            <label class="prov-step${c[k] ? ' is-done' : ''}">
+              <input type="checkbox" data-step="${k}"${c[k] ? ' checked' : ''}>
+              <span class="prov-step-mark" aria-hidden="true"></span>
+              <span>${escapeHtml(t(`prov.ficha.paso.${k}`))}</span>
+            </label>`).join('')}
+        </div>
+        <div class="prov-ficha-notas">
+          <span class="prov-lbl">${escapeHtml(t('prov.ficha.notas'))}</span>
+          <p class="${p.notas ? '' : 'muted'}">${escapeHtml(p.notas || t('prov.ficha.sinNotas'))}</p>
+        </div>
+        <div class="prov-ficha-foot">
+          <button class="btn btn-secondary" type="button" data-ficha-edit="${escapeHtml(p.id)}">${escapeHtml(t('prov.ficha.editar'))}</button>
+        </div>
       </div>`;
   }
 
@@ -445,11 +627,29 @@ export class ProveedoresView extends AppElement {
     this.on(this.$('#pf-orden'), 'change', (e) => { this._orden = e.target.value; this._apply(true); });
     this.on(this.$('#add-open'), 'click', () => this._openAdd());
 
+    // Toggle rejilla / tablero.
+    const vt = this.$('#pf-vista');
+    if (vt) {
+      vt.options = [
+        { value: 'rejilla', label: t('prov.vista.rejilla') },
+        { value: 'tablero', label: t('prov.vista.tablero') },
+      ];
+      vt.value = this._vista;
+      this.on(vt, 'change', (e) => { this._vista = e.detail.value; this._apply(true); });
+    }
+
     // Contenedores estables: delegación una sola vez por render completo.
     this.on(this.$('#insights'), 'click', (e) => this._onInsightsClick(e));
+    this.on(this.$('#pagos'), 'click', (e) => { if (e.target.closest('[data-pagos-toggle]')) { this._pagosOpen = !this._pagosOpen; this.$('#pagos').innerHTML = this._pagosTpl; } else { const f = e.target.closest('[data-ficha]'); if (f) this._openFicha(f.dataset.ficha); } });
     this.on(this.$('#chips'), 'click', (e) => this._onChipsClick(e));
-    this.on(this.$('#grid'), 'click', (e) => this._onGridClick(e));
-    this.on(this.$('#empty'), 'click', (e) => { if (e.target.closest('#empty-add')) this._openAdd(); });
+    this.on(this.$('#listing'), 'click', (e) => this._onListingClick(e));
+    this.on(this.$('#listing'), 'change', (e) => this._onListingChange(e));
+    this.on(this.$('#listing'), 'dragstart', (e) => this._onDragStart(e));
+    this.on(this.$('#listing'), 'dragover', (e) => this._onDragOver(e));
+    this.on(this.$('#listing'), 'dragleave', (e) => this._onDragLeave(e));
+    this.on(this.$('#listing'), 'drop', (e) => this._onDrop(e));
+    this.on(this.$('#listing'), 'dragend', () => this._onDragEnd());
+    this.on(this.$('#bulkbar'), 'click', (e) => this._onBulkClick(e));
     this.on(this.$('#overlay'), 'click', (e) => this._onOverlayClick(e));
     this.on(this.$('#overlay'), 'change', (e) => this._onOverlayChange(e));
     this.on(this.$('#overlay'), 'input', (e) => this._onOverlayInput(e));
@@ -458,6 +658,7 @@ export class ProveedoresView extends AppElement {
     this._wireBadges();
     this._wireOverlayDialogs();
     this._wireCompareDialog();
+    this._wireFichaDrawer();
     this._playStagger();
     this._animateHero();
   }
@@ -535,10 +736,10 @@ export class ProveedoresView extends AppElement {
     if (stats) stats.innerHTML = this._statsTpl;
     const chips = this.$('#chips');
     if (chips) chips.innerHTML = this._chipsTpl;
-    const grid = this.$('#grid');
-    if (grid) grid.innerHTML = this._gridTpl;
-    const empty = this.$('#empty');
-    if (empty) empty.innerHTML = this._visible.length ? '' : this._emptyTpl;
+    const listing = this.$('#listing');
+    if (listing) listing.innerHTML = this._listingTpl;
+    const bulk = this.$('#bulkbar');
+    if (bulk) bulk.innerHTML = this._bulkbarTpl;
     this._wireBadges();
     if (stagger) this._playStagger();
     if (refreshHero) {
@@ -546,6 +747,8 @@ export class ProveedoresView extends AppElement {
       if (hero) { hero.innerHTML = this._heroTpl; this._animateHero(); }
       const ins = this.$('#insights');
       if (ins) ins.innerHTML = this._insightsTpl;
+      const pagos = this.$('#pagos');
+      if (pagos) pagos.innerHTML = this._pagosTpl;
       this._maybeCelebrate();
     }
     if (flashId) {
@@ -556,7 +759,7 @@ export class ProveedoresView extends AppElement {
 
   /** Reproduce (una vez) la entrada escalonada de las tarjetas de la rejilla. */
   _playStagger() {
-    const grid = this.$('#grid');
+    const grid = this.$('.prov-grid');
     if (!grid) return;
     grid.classList.remove('prov-stagger');
     // reflow para reiniciar la animación aunque la clase ya estuviera puesta
@@ -597,8 +800,9 @@ export class ProveedoresView extends AppElement {
     if (chip) this._openAdd(chip.dataset.cat);
   }
 
-  /** @param {MouseEvent} e */
-  _onGridClick(e) {
+  /** @param {MouseEvent} e Clicks en la rejilla o el tablero. */
+  _onListingClick(e) {
+    if (e.target.closest('[data-sel]')) return; // la selección va por 'change'
     const badge = e.target.closest('[data-badge]');
     if (badge) { e.stopPropagation(); this._toggleEstadoPop(badge, badge.dataset.badge); return; }
     const compare = e.target.closest('[data-compare]');
@@ -608,7 +812,146 @@ export class ProveedoresView extends AppElement {
     const del = e.target.closest('[data-del]');
     if (del) { this._removeProv(del.dataset.del); return; }
     const contratar = e.target.closest('[data-contratar]');
-    if (contratar) this._toggleContratar(contratar.dataset.contratar);
+    if (contratar) { this._toggleContratar(contratar.dataset.contratar); return; }
+    if (e.target.closest('#empty-add')) { this._openAdd(); return; }
+    const ficha = e.target.closest('[data-ficha]');
+    if (ficha) this._openFicha(ficha.dataset.ficha);
+  }
+
+  /** @param {Event} e Cambios en la rejilla/tablero (checkbox de selección). */
+  _onListingChange(e) {
+    const sel = e.target.closest('[data-sel]');
+    if (sel) this._toggleSelect(sel.dataset.sel, sel.checked);
+  }
+
+  // ---------- Multi-selección y acciones en lote ----------
+
+  /** @param {string} id @param {boolean} checked */
+  _toggleSelect(id, checked) {
+    if (checked) this._selected.add(id); else this._selected.delete(id);
+    const bulk = this.$('#bulkbar');
+    if (bulk) bulk.innerHTML = this._bulkbarTpl;
+    const card = this.$(`.prov-card[data-id="${id}"]`);
+    if (card) card.classList.toggle('is-selected', checked);
+  }
+
+  /** @param {MouseEvent} e */
+  _onBulkClick(e) {
+    const b = e.target.closest('[data-bulk]');
+    if (!b) return;
+    const action = b.dataset.bulk;
+    if (action === 'limpiar') { this._selected.clear(); this._apply(); return; }
+    const ids = [...this._selected];
+    if (!ids.length) return;
+    if (action === 'eliminar') {
+      ids.forEach((id) => proveedoresRepo.remove(id));
+      this._provs = this._provs.filter((p) => !this._selected.has(p.id));
+      this._selected.clear();
+      this._apply(false, true);
+      this._toast('prov.toast.loteEliminado', { n: ids.length });
+      return;
+    }
+    const estado = action === 'contratar' ? 'contratado' : 'descartado';
+    ids.forEach((id) => {
+      const p = this._provs.find((x) => x.id === id);
+      if (p) this._syncProv(proveedoresRepo.upsert({ ...p, estado }));
+    });
+    this._selected.clear();
+    this._apply(false, true);
+    this._toast('prov.toast.lote', { n: ids.length });
+  }
+
+  // ---------- Tablero Kanban: arrastrar y soltar ----------
+
+  /** @param {DragEvent} e */
+  _onDragStart(e) {
+    const card = e.target.closest('[data-card]');
+    if (!card) return;
+    this._dragId = card.dataset.card;
+    e.dataTransfer.setData('text/plain', this._dragId);
+    e.dataTransfer.effectAllowed = 'move';
+    card.classList.add('is-dragging');
+  }
+
+  /** @param {DragEvent} e */
+  _onDragOver(e) {
+    const body = e.target.closest('[data-col-body]');
+    if (!body) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    body.classList.add('is-over');
+  }
+
+  /** @param {DragEvent} e */
+  _onDragLeave(e) {
+    const body = e.target.closest('[data-col-body]');
+    if (body && !body.contains(e.relatedTarget)) body.classList.remove('is-over');
+  }
+
+  /** @param {DragEvent} e */
+  _onDrop(e) {
+    const body = e.target.closest('[data-col-body]');
+    if (!body) return;
+    e.preventDefault();
+    body.classList.remove('is-over');
+    const id = e.dataTransfer.getData('text/plain') || this._dragId;
+    const col = body.dataset.colBody;
+    this._dragId = null;
+    const p = this._provs.find((x) => x.id === id);
+    if (id && col && p && p.estado !== col) this._setEstado(id, col);
+  }
+
+  /** Limpia las clases de arrastre. */
+  _onDragEnd() {
+    this.$$('.is-dragging').forEach((el) => el.classList.remove('is-dragging'));
+    this.$$('.is-over').forEach((el) => el.classList.remove('is-over'));
+    this._dragId = null;
+  }
+
+  // ---------- Ficha (drawer) + checklist ----------
+
+  /** @param {string} id */
+  _openFicha(id) {
+    this._fichaId = id;
+    this._paintFicha();
+  }
+
+  /** Pinta el contenido del drawer de ficha y lo abre. */
+  _paintFicha() {
+    const drawer = this.$('#ficha');
+    if (!drawer) return;
+    const p = this._fichaId ? this._provs.find((x) => x.id === this._fichaId) : null;
+    if (!p) { drawer.innerHTML = ''; return; }
+    drawer.heading = p.nombre;
+    drawer.innerHTML = this._fichaContentTpl(p);
+    this._wireBadges();
+    drawer.open();
+  }
+
+  /** Cablea el drawer de ficha (una vez): cierre, checklist y editar. */
+  _wireFichaDrawer() {
+    const drawer = this.$('#ficha');
+    if (!drawer) return;
+    this.on(drawer, 'close', () => { this._fichaId = null; drawer.innerHTML = ''; });
+    this.on(drawer, 'change', (e) => this._onFichaChange(e));
+    this.on(drawer, 'click', (e) => {
+      const ed = e.target.closest('[data-ficha-edit]');
+      if (ed) { const id = ed.dataset.fichaEdit; this._fichaId = null; drawer.close(); this._openEdit(id); }
+    });
+  }
+
+  /** @param {Event} e Marca/desmarca un paso del checklist y persiste. */
+  _onFichaChange(e) {
+    const step = e.target.closest('[data-step]');
+    if (!step) return;
+    const wrap = this.$('#ficha .prov-ficha');
+    const id = wrap?.dataset.fichaId;
+    const p = id && this._provs.find((x) => x.id === id);
+    if (!p) return;
+    const checklist = { ...(p.checklist || {}), [step.dataset.step]: step.checked };
+    this._syncProv(proveedoresRepo.upsert({ ...p, checklist }));
+    this._paintFicha();
+    this._apply(false, false); // refresca el progreso en la tarjeta del listado
   }
 
   // ---------- Comparador por categoría ----------

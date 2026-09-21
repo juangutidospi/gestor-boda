@@ -1,5 +1,5 @@
 import { register } from './runner.js';
-import { filtrar, ordenar, calcularStats, chipsCategorias } from '../js/components/views/proveedores-view/proveedores-calc.js';
+import { filtrar, ordenar, calcularStats, chipsCategorias, checklistDe, checklistProgreso, timelinePagos } from '../js/components/views/proveedores-view/proveedores-calc.js';
 
 register('proveedores/calc', () => {
   const out = [];
@@ -36,5 +36,26 @@ register('proveedores/calc', () => {
   out.push({ name: 'chip Fotografía cubierta', ok: chips.find((c) => c.categoria === 'Fotografía').estado === 'cubierta', detail: '' });
   out.push({ name: 'chip Flores en marcha', ok: chips.find((c) => c.categoria === 'Flores').estado === 'enMarcha', detail: '' });
   out.push({ name: 'chip Vídeo vacía (descartado no cuenta)', ok: chips.find((c) => c.categoria === 'Vídeo').estado === 'vacia', detail: '' });
+
+  // Checklist: deriva del estado cuando no hay guardado.
+  const chDeriv = checklistDe({ estado: 'contratado', senal: 500 });
+  out.push({ name: 'checklist derivado: contratado con señal → presupuesto+señal+contrato', ok: chDeriv.presupuesto && chDeriv.senal && chDeriv.contrato && !chDeriv.confirmado, detail: JSON.stringify(chDeriv) });
+  const chStored = checklistDe({ estado: 'contratado', senal: 500, checklist: { confirmado: true, contrato: false } });
+  out.push({ name: 'checklist guardado prevalece sobre el derivado', ok: chStored.confirmado === true && chStored.contrato === false, detail: JSON.stringify(chStored) });
+  const prog = checklistProgreso({ estado: 'contratado', senal: 500 });
+  out.push({ name: 'checklistProgreso cuenta pasos hechos', ok: prog.done === 3 && prog.total === 4, detail: `${prog.done}/${prog.total}` });
+
+  // Timeline de pagos: solo contratados con saldo, ordenado por fecha.
+  const tl = timelinePagos([
+    { id: 'a', nombre: 'A', categoria: 'X', estado: 'contratado', precio: 2000, senal: 500, fechaPago: '2027-01-10' },
+    { id: 'b', nombre: 'B', categoria: 'Y', estado: 'contratado', precio: 1000, senal: 300, fechaPago: '2026-11-15' },
+    { id: 'c', nombre: 'C', categoria: 'Z', estado: 'presupuesto', precio: 900, senal: 0 },
+    { id: 'd', nombre: 'D', categoria: 'W', estado: 'contratado', precio: 400, senal: 400, fechaPago: '2026-10-01' },
+  ]);
+  out.push({ name: 'timeline: solo contratados con saldo > 0', ok: tl.entradas.length === 2, detail: tl.entradas.map((e) => e.id).join(',') });
+  out.push({ name: 'timeline: ordenado por fecha (b antes que a)', ok: tl.entradas[0].id === 'b', detail: tl.entradas.map((e) => e.id).join(',') });
+  out.push({ name: 'timeline: total pendiente = 1500 + 700', ok: tl.totalPendiente === 2200, detail: String(tl.totalPendiente) });
+  out.push({ name: 'timeline: total pagado suma señales', ok: tl.totalPagado === 1200, detail: String(tl.totalPagado) });
+
   return out;
 });

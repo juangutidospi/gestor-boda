@@ -226,4 +226,97 @@ export const styles = css`
 .prov-form-span2 { grid-column: span 2; }
 .prov-form-foot { display: flex; gap: var(--space-2); align-items: center; border-top: 2px solid var(--color-divider); padding-top: var(--space-3); }
 .prov-form-foot button { margin-left: auto; }
+
+/* ---------- Toolbar (toggle rejilla/tablero) ---------- */
+.prov-toolbar { display: flex; justify-content: flex-end; }
+
+/* ---------- Selección múltiple ---------- */
+.prov-card { position: relative; }
+.prov-card-top .prov-sel { flex: 0 0 auto; display: inline-flex; align-items: center; }
+.prov-sel input { width: 17px; height: 17px; accent-color: var(--color-accent); cursor: pointer; }
+.prov-card.is-selected { border-color: var(--color-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 30%, transparent); }
+
+/* Monograma (botón que abre la ficha) y nombre clicable */
+.prov-card-top .prov-mono { border: 0; cursor: pointer; }
+.prov-card-id h3 { margin: 0; }
+.prov-name-btn { border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.prov-name-btn:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Bloque superior derecho: progreso del checklist + badge */
+.prov-card-tr { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.prov-card-tr .prov-badge-btn { margin-left: 0; }
+.prov-check {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap;
+  background: var(--rsvp-si-bg); color: var(--rsvp-si-dot); border: 1px solid var(--rsvp-si-line);
+}
+
+/* ---------- Panel de próximos pagos ---------- */
+.prov-pagos { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden; }
+.prov-pagos-head {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%;
+  padding: 12px var(--space-4); background: none; border: 0; cursor: pointer; font: inherit;
+  color: var(--color-text); text-align: left;
+}
+.prov-pagos-head:hover { background: color-mix(in srgb, var(--color-accent) 5%, var(--color-surface)); }
+.prov-pagos-caret { color: var(--color-accent-700); font-size: 12px; }
+.prov-pagos-title { font-weight: 600; }
+.prov-pagos-total { font-variant-numeric: tabular-nums; }
+.prov-pagos-total b { color: var(--color-accent-700); }
+.prov-pagos-pagado { margin-left: auto; font-size: 12px; }
+.prov-pagos-list { list-style: none; margin: 0; padding: 0 var(--space-4) var(--space-3); }
+.prov-pago { display: flex; align-items: baseline; gap: var(--space-3); padding: 8px 0; border-top: 1px solid var(--color-divider); cursor: pointer; }
+.prov-pago:hover { color: var(--color-accent-700); }
+.prov-pago-fecha { flex: 0 0 auto; width: 108px; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--color-neutral-700); }
+.prov-pago-nombre { flex: 1; min-width: 0; }
+.prov-pago-importe { margin-left: auto; font-family: var(--font-heading); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- Tablero Kanban ---------- */
+.prov-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(238px, 1fr); gap: 14px; overflow-x: auto; padding-bottom: var(--space-3); }
+.prov-col { background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface)); border: 1px solid var(--color-divider); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.prov-col-head { display: flex; align-items: center; gap: 8px; }
+.prov-col-count { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--color-neutral-700); }
+.prov-col-body { display: flex; flex-direction: column; gap: 8px; min-height: 48px; border-radius: 10px; transition: background .12s ease; }
+.prov-col-body.is-over { background: color-mix(in srgb, var(--color-accent) 12%, transparent); outline: 2px dashed var(--color-accent-300); outline-offset: 2px; }
+.prov-bcard { display: flex; align-items: center; gap: 9px; padding: 10px; border-radius: 10px; background: var(--color-surface); border: 1px solid var(--color-divider); box-shadow: var(--shadow-sm); cursor: grab; }
+.prov-bcard:hover { border-color: var(--color-accent-300); }
+.prov-bcard.is-dragging { opacity: .5; cursor: grabbing; }
+.prov-bcard-mono { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-heading); font-weight: 600; font-size: 12px; background: var(--color-accent-100); color: var(--color-accent-700); }
+.prov-bcard-txt { min-width: 0; flex: 1; }
+.prov-bcard-nombre { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prov-bcard-meta { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prov-bcard .prov-check { flex: 0 0 auto; padding: 1px 6px; font-size: 10px; }
+
+/* ---------- Barra flotante de acciones en lote ---------- */
+.prov-bulkbar {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 22px; z-index: 50;
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 16px; max-width: calc(100% - 32px);
+  border-radius: 999px; background: var(--color-surface); border: 1px solid var(--color-divider); box-shadow: var(--shadow-md);
+}
+.prov-bulk-count { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.prov-bulkbar .btn { min-height: 34px; font-size: 12px; padding: 0 12px; }
+
+/* ---------- Ficha (dentro del drawer) ---------- */
+.prov-ficha { display: flex; flex-direction: column; gap: var(--space-4); }
+.prov-ficha-head { display: flex; align-items: flex-start; gap: var(--space-3); }
+.prov-ficha-mono { width: 44px; height: 44px; cursor: default; }
+.prov-ficha-head-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.prov-ficha-datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: var(--space-3); padding: var(--space-3); background: var(--color-accent-100); border-radius: 12px; }
+.prov-ficha-dato { display: flex; flex-direction: column; gap: 2px; }
+.prov-ficha-val { font-family: var(--font-heading); font-weight: 600; font-size: 18px; font-variant-numeric: tabular-nums; }
+.prov-ficha-paso { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--rsvp-si-bg); border: 1px solid var(--rsvp-si-line); }
+.prov-ficha-paso-txt { font-weight: 600; color: var(--rsvp-si-dot); }
+.prov-ficha-check-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.prov-ficha-check-head h5 { margin: 0; }
+.prov-ficha-check-head .prov-check { margin-left: auto; }
+.prov-step { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--color-divider); cursor: pointer; font-size: 14px; }
+.prov-step input { position: absolute; opacity: 0; width: 0; height: 0; }
+.prov-step-mark { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--color-divider); display: inline-flex; align-items: center; justify-content: center; transition: background .12s, border-color .12s; }
+.prov-step.is-done .prov-step-mark { background: var(--rsvp-si-dot); border-color: var(--rsvp-si-dot); }
+.prov-step.is-done .prov-step-mark::after { content: '✓'; color: var(--color-surface); font-size: 12px; line-height: 1; }
+.prov-step.is-done { color: var(--color-neutral-700); }
+.prov-step input:focus-visible + .prov-step-mark { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.prov-ficha-notas p { margin: 4px 0 0; font-size: 13px; }
+.prov-ficha-foot { display: flex; }
+@media (prefers-reduced-motion: reduce) { .prov-col-body, .prov-step-mark { transition: none; } }
 `;

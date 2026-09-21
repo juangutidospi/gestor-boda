@@ -56,7 +56,6 @@ export class PresupuestoView extends AppElement {
           <div class="pres-head-txt">
             <span class="eyebrow">${escapeHtml(t('nav.presupuesto'))}</span>
             <h1>${escapeHtml(t('pres.title'))}</h1>
-            <p class="muted">${escapeHtml(t('pres.subtitle'))}</p>
           </div>
           <div class="field pres-limite">
             <label for="pv-limite">${escapeHtml(t('pres.limite'))}</label>
@@ -69,10 +68,9 @@ export class PresupuestoView extends AppElement {
       </div>`;
   }
 
-  /** @returns {string} Resumen + insights + bloques + footer (lo repintable). */
+  /** @returns {string} Resumen + insights + bloques (lo repintable). */
   get _bodyTpl() {
-    return `${this._resumenTpl}${this._insightsTpl}${this._bloquesTpl}
-      <p class="pres-foot muted">${escapeHtml(t('pres.footer', this._data.footerVars))}</p>`;
+    return `${this._resumenTpl}${this._insightsTpl}${this._bloquesTpl}`;
   }
 
   /** @returns {string} Tarjeta de resumen: total, margen/exceso, barra y leyenda. */
