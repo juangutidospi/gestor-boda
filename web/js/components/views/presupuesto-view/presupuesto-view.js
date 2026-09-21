@@ -62,7 +62,7 @@ export class PresupuestoView extends AppElement {
             <input class="input" id="pv-limite" type="number" min="0" step="1000" value="${escapeHtml(String(this._limite))}">
           </div>
         </div>
-        <div id="body">${this._bodyTpl}</div>
+        <div id="body">${this._data ? this._bodyTpl : ''}</div>
         <div id="confetti" aria-hidden="true"></div>
         <app-toast id="toast"></app-toast>
       </div>`;
