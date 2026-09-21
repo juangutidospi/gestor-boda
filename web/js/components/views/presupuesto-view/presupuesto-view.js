@@ -24,6 +24,25 @@ export class PresupuestoView extends AppElement {
   /** Recuerda si ya se estaba dentro del límite (celebración una sola vez). */
   _wasWithin = false;
 
+  /**
+   * Se conecta a los cambios de datos: al editar proveedores, invitados, finca o
+   * configuración desde otra vista, el presupuesto se recalcula (en vivo si está visible;
+   * si no, la navegación ya lo refresca al volver). Ignora sus propios cambios del límite
+   * (`presupuesto`) para no perder el foco del input mientras se teclea.
+   */
+  connectedCallback() {
+    super.connectedCallback();
+    this.on(window, 'store:changed', this._onStoreChanged);
+  }
+
+  /** @param {CustomEvent} e */
+  _onStoreChanged = (e) => {
+    const group = e.detail?.group;
+    if (group === 'presupuesto') return; // cambio propio del límite: ya lo gestiona _apply
+    if (this.offsetParent === null) return; // no visible: se refrescará al navegar
+    this.refresh();
+  };
+
   /** Público: lo llama el router al abrir la vista. */
   refresh() {
     ensureSeeded();
