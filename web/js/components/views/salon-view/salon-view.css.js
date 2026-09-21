@@ -124,6 +124,12 @@ export const styles = css`
 .sal-panel-ocup { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-700); }
 .sal-panel-close { flex: 0 0 auto; border: 0; background: none; cursor: pointer; font-size: 20px; line-height: 1; color: var(--color-neutral-700); padding: 0 2px; }
 .sal-panel-close:hover { color: var(--color-text); }
+.sal-panel-forma { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: var(--space-3); }
+.sal-forma-lbl { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); margin-right: 2px; }
+.sal-forma-btn { border: 1px solid var(--color-divider); background: var(--color-surface); color: var(--color-text); border-radius: 999px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: var(--font-body); }
+.sal-forma-btn:hover { border-color: var(--color-accent-300); }
+.sal-forma-btn.is-active { border-color: var(--color-accent); background: var(--color-accent-100); color: var(--color-accent-700); }
+.sal-rotar { font-size: 11px; padding: 4px 10px; }
 .sal-panel-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-3); }
 .sal-panel-acts button { font-size: 11px; letter-spacing: .05em; padding: 6px 10px; }
 .sal-panel-del { color: var(--color-accent-700); margin-left: auto; }

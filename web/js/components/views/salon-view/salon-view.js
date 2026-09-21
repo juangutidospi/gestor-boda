@@ -115,14 +115,15 @@ export class SalonView extends AppElement {
     const { asignados, ocupadas, sobra } = ocupacionMesa(m, confs);
     const cap = Number(m.capacidad) || 0;
     const { rect, w, h } = mesaSize(m);
+    const rot = Number(m.rot) || 0;
     const sel = this._mesaSel === m.id;
     const people = this._peopleDeMesa(asignados);
-    const seats = sillasGeom(m, cap).map((pos, i) => this._seatTpl(people[i], i, pos)).join('');
+    const seats = sillasGeom(m, cap).map((pos, i) => this._seatTpl(people[i], i, pos, rot)).join('');
     return `
-      <div class="sal-mesa-wrap" style="left:${m.x ?? 50}%;top:${m.y ?? 50}%;width:${w + 170}px;height:${h + 170}px">
+      <div class="sal-mesa-wrap" style="left:${m.x ?? 50}%;top:${m.y ?? 50}%;width:${w + 170}px;height:${h + 170}px;transform:translate(-50%,-50%) rotate(${rot}deg)">
         <div class="sal-mesa ${rect ? 'is-rect' : 'is-round'}${sobra ? ' is-over' : ''}${sel ? ' is-sel' : ''}"
              data-mesa="${escapeHtml(m.id)}" data-mesa-drop="${escapeHtml(m.id)}" style="width:${w}px;height:${h}px">
-          <div class="sal-mesa-center">
+          <div class="sal-mesa-center"${rot ? ` style="transform:translate(-50%,-50%) rotate(${-rot}deg)"` : ''}>
             <div class="sal-mesa-nombre">${escapeHtml(m.nombre)}</div>
             <div class="sal-mesa-plazas">${ocupadas}/${cap}</div>
           </div>
@@ -154,13 +155,16 @@ export class SalonView extends AppElement {
    * @param {object} pos Geometría del asiento.
    * @returns {string} Avatar + nombre (ocupado) o círculo punteado con número (vacío).
    */
-  _seatTpl(person, i, pos) {
+  _seatTpl(person, i, pos, rot = 0) {
     const at = `left:calc(50% + ${pos.x.toFixed(1)}px);top:calc(50% + ${pos.y.toFixed(1)}px)`;
     if (!person) {
       return `<span class="sal-seat-empty" style="${at}">${i + 1}</span>`;
     }
     const lado = person.lado === 'novia' ? 'novia' : 'novio';
-    let nameDeg = pos.deg;
+    // Orientación legible del nombre teniendo en cuenta la rotación de la mesa.
+    let nameDeg = pos.deg - rot;
+    while (nameDeg <= -180) nameDeg += 360;
+    while (nameDeg > 180) nameDeg -= 360;
     if (nameDeg > 90 && nameDeg < 270) nameDeg -= 180;
     const nameAt = `left:calc(50% + ${pos.nx.toFixed(1)}px);top:calc(50% + ${pos.ny.toFixed(1)}px)`;
     return `
@@ -187,8 +191,12 @@ export class SalonView extends AppElement {
           </div>
           <button class="sal-panel-close" type="button" data-deselect aria-label="${escapeHtml(t('salon.mesa.cerrar'))}">×</button>
         </div>
+        <div class="sal-panel-forma">
+          <span class="sal-forma-lbl">${escapeHtml(t('salon.mesa.forma'))}</span>
+          ${['redonda', 'rectangular', 'imperial'].map((f) => `<button class="sal-forma-btn${(m.forma || 'redonda') === f ? ' is-active' : ''}" type="button" data-forma-set="${f}">${escapeHtml(t(`salon.forma.${f}`))}</button>`).join('')}
+          ${(m.forma || 'redonda') !== 'redonda' ? `<button class="btn btn-ghost sal-rotar" type="button" data-rotar>${escapeHtml(t('salon.mesa.rotar'))}</button>` : ''}
+        </div>
         <div class="sal-panel-acts">
-          <button class="btn btn-secondary" type="button" data-forma="${escapeHtml(m.id)}">${escapeHtml(t(m.forma === 'rectangular' ? 'salon.mesa.hacerRedonda' : 'salon.mesa.hacerRect'))}</button>
           <button class="btn btn-ghost" type="button" data-vaciar="${escapeHtml(m.id)}">${escapeHtml(t('salon.mesa.vaciar'))}</button>
           <button class="btn btn-ghost sal-panel-del" type="button" data-del-mesa="${escapeHtml(m.id)}">${escapeHtml(t('salon.mesa.eliminar'))}</button>
         </div>
@@ -360,8 +368,13 @@ export class SalonView extends AppElement {
     if (e.target.closest('[data-deselect]')) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); return; }
     const unseat = e.target.closest('[data-unseat]');
     if (unseat) { this._setMesaGuest(unseat.dataset.unseat, null); return; }
-    const forma = e.target.closest('[data-forma]');
-    if (forma) { this._toggleForma(forma.dataset.forma); return; }
+    const formaSet = e.target.closest('[data-forma-set]');
+    if (formaSet) { if (this._mesaSel) this._setMesa(this._mesaSel, { forma: formaSet.dataset.formaSet }); return; }
+    if (e.target.closest('[data-rotar]')) {
+      const m = this._mesas.find((x) => x.id === this._mesaSel);
+      if (m) this._setMesa(m.id, { rot: ((Number(m.rot) || 0) + 90) % 360 });
+      return;
+    }
     const vaciar = e.target.closest('[data-vaciar]');
     if (vaciar) { this._vaciarMesa(vaciar.dataset.vaciar); return; }
     const del = e.target.closest('[data-del-mesa]');
