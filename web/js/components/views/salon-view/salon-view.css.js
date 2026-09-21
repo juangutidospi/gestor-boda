@@ -7,22 +7,15 @@ import { css } from '../../../core/css.js';
 export const styles = css`
 :host { display: block; }
 
-.page-head { padding-top: var(--space-6); }
-/* Cabecera: título + subtítulo a la izquierda, tira de stats a la derecha. */
-.sal-head { flex-direction: row; flex-wrap: wrap; gap: var(--space-4) var(--space-6); align-items: flex-end; }
-.sal-head-txt { flex: 1 1 260px; min-width: 240px; display: flex; flex-direction: column; gap: 2px; }
-.sal-sub { margin: 2px 0 0; max-width: 46ch; }
-
-/* Tira compacta de estadísticas en la cabecera */
-.sal-statstrip { display: flex; gap: var(--space-6); flex-wrap: wrap; align-items: flex-end; }
+/* Barra de herramientas: toggle Plano/Listado + tira de stats + añadir mesa */
+.sal-toolbar { display: flex; align-items: center; gap: var(--space-4) var(--space-6); flex-wrap: wrap; padding: var(--space-6) 0 var(--space-3); border-bottom: 1px solid var(--color-divider); }
+.sal-legend { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); font-size: 12px; }
+.sal-legend-help { max-width: 30ch; }
+@media (max-width: 1180px) { .sal-legend-help { display: none; } }
+.sal-statstrip { display: flex; gap: var(--space-6); flex-wrap: wrap; align-items: baseline; }
 .sal-mini { display: flex; flex-direction: column; gap: 1px; }
-.sal-mini-label { white-space: nowrap; }
-.sal-mini-value { font-family: var(--font-heading); font-weight: 600; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
-.sal-mini-label { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--color-neutral-700); }
-
-/* Barra de herramientas (toggle + añadir) */
-.sal-toolbar { display: flex; align-items: center; gap: var(--space-3); border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider); padding: var(--space-3) 0; }
-.sal-toolbar-add { margin-left: auto; }
+.sal-mini-value { font-family: var(--font-heading); font-weight: 600; font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
+.sal-mini-label { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--color-neutral-700); white-space: nowrap; }
 
 /* ---------- Rejilla: escenario + aside lateral ---------- */
 .sal-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
@@ -30,9 +23,18 @@ export const styles = css`
 
 /* ---------- Plano (ajustado a la altura de pantalla) ---------- */
 .sal-plano {
-  position: relative; width: 100%; height: min(58vh, 620px); min-height: 380px; overflow: hidden;
+  position: relative; width: 100%; height: min(58vh, 620px); min-height: 340px; max-height: 92vh;
+  overflow: hidden; resize: vertical;
   background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 20px;
   touch-action: none; box-shadow: 0 1px 3px color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+/* Tirador de redimensionado en la esquina inferior derecha */
+.sal-plano::after {
+  content: ''; position: absolute; right: 4px; bottom: 4px; width: 14px; height: 14px; pointer-events: none; z-index: 5;
+  background:
+    linear-gradient(135deg, transparent 40%, var(--color-neutral-600) 40%, var(--color-neutral-600) 52%, transparent 52%,
+    transparent 66%, var(--color-neutral-600) 66%, var(--color-neutral-600) 78%, transparent 78%);
+  opacity: .55;
 }
 .sal-plano-grid { position: absolute; inset: 0; background-image: radial-gradient(var(--color-divider) 1px, transparent 1px); background-size: 28px 28px; opacity: .45; }
 .sal-plano-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 35%, color-mix(in srgb, var(--color-surface) 90%, transparent), color-mix(in srgb, var(--color-accent-100) 55%, transparent)); }
@@ -103,8 +105,7 @@ export const styles = css`
   font-size: 10px; color: var(--color-neutral-700); font-variant-numeric: tabular-nums;
 }
 
-.sal-plano-foot { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; padding: var(--space-3) 4px; font-size: 12px; }
-.sal-leg { display: inline-flex; align-items: center; gap: 6px; }
+.sal-leg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .sal-leg-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--color-surface); }
 .sal-leg-dot.sal-lado-novio { box-shadow: 0 0 0 2px var(--lado-novio) inset; }
 .sal-leg-dot.sal-lado-novia { box-shadow: 0 0 0 2px var(--lado-novia) inset; }

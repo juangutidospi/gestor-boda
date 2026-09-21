@@ -27,6 +27,10 @@ export class SalonView extends AppElement {
   _mesaSel = null;
   /** Id de la mesa que se está arrastrando (pointer), o null. */
   _dragMesaId = null;
+  /** Alto elegido a mano para el plano (p. ej. '720px'), o null. */
+  _planoH = null;
+  /** @type {ResizeObserver|null} */
+  _ro = null;
 
   /** Público: lo llama el router al abrir la vista. */
   refresh() {
@@ -42,20 +46,24 @@ export class SalonView extends AppElement {
   render() {
     this.shadowRoot.innerHTML = `
       <div class="view-content">
-        <div class="page-head sal-head">
-          <div class="sal-head-txt">
-            <span class="eyebrow">${escapeHtml(t('nav.salon'))}</span>
-            <h1>${escapeHtml(t('salon.title'))}</h1>
-            <p class="muted sal-sub">${escapeHtml(t('salon.subtitle'))}</p>
-          </div>
-          <div id="stats" class="sal-statstrip">${this._statsTpl}</div>
-        </div>
         <div class="sal-toolbar">
           <segmented-tabs id="sv-vista"></segmented-tabs>
+          <div id="stats" class="sal-statstrip">${this._statsTpl}</div>
+          ${this._legendTpl}
           <button class="btn btn-primary sal-toolbar-add" id="sv-add" type="button">+&nbsp;&nbsp;${escapeHtml(t('salon.add'))}</button>
         </div>
         <div id="main">${this._mainTpl}</div>
         <app-toast id="toast"></app-toast>
+      </div>`;
+  }
+
+  /** @returns {string} Ayuda de arrastre + leyenda de lado (novio/novia) para la toolbar. */
+  get _legendTpl() {
+    return `
+      <div class="sal-legend">
+        <span class="muted sal-legend-help">${escapeHtml(t('salon.plano.ayuda'))}</span>
+        <span class="sal-leg"><i class="sal-leg-dot sal-lado-novio"></i>${escapeHtml(t('salon.leyenda.novio'))}</span>
+        <span class="sal-leg"><i class="sal-leg-dot sal-lado-novia"></i>${escapeHtml(t('salon.leyenda.novia'))}</span>
       </div>`;
   }
 
@@ -88,7 +96,7 @@ export class SalonView extends AppElement {
     const confs = this._confs;
     return `
       <div class="sal-plano-wrap">
-        <div class="sal-plano" id="plano">
+        <div class="sal-plano" id="plano"${this._planoH ? ` style="height:${this._planoH}"` : ''}>
           <div class="sal-plano-grid" aria-hidden="true"></div>
           <div class="sal-plano-vignette" aria-hidden="true"></div>
           <div class="sal-plano-inner1" aria-hidden="true"></div>
@@ -97,11 +105,6 @@ export class SalonView extends AppElement {
           <div class="sal-pista">${escapeHtml(t('salon.plano.pista'))}</div>
           <div class="sal-barra">${escapeHtml(t('salon.plano.barra'))}</div>
           ${this._mesas.map((m) => this._mesaTpl(m, confs)).join('')}
-        </div>
-        <div class="sal-plano-foot">
-          <span class="muted">${escapeHtml(t('salon.plano.ayuda'))}</span>
-          <span class="sal-leg"><i class="sal-leg-dot sal-lado-novio"></i>${escapeHtml(t('salon.leyenda.novio'))}</span>
-          <span class="sal-leg"><i class="sal-leg-dot sal-lado-novia"></i>${escapeHtml(t('salon.leyenda.novia'))}</span>
         </div>
       </div>`;
   }
@@ -299,14 +302,30 @@ export class SalonView extends AppElement {
     this.on(this.$('#main'), 'dragleave', (e) => this._onGuestDragLeave(e));
     this.on(this.$('#main'), 'drop', (e) => this._onGuestDrop(e));
     this.on(this.$('#main'), 'dragend', () => this._onGuestDragEnd());
+    this._observePlano();
   }
 
-  /** Repinta stats + escenario + aside sin reconstruir el header. */
+  /** Repinta stats + escenario + aside; conserva el alto del plano redimensionado. */
   _apply() {
+    const plano = this.$('#plano');
+    if (plano && plano.style.height) this._planoH = plano.style.height;
     const stats = this.$('#stats');
     if (stats) stats.innerHTML = this._statsTpl;
     const main = this.$('#main');
     if (main) main.innerHTML = this._mainTpl;
+    this._observePlano();
+  }
+
+  /** Observa el plano para recordar el alto que el usuario ajusta a mano (CSS resize). */
+  _observePlano() {
+    if (this._ro) this._ro.disconnect();
+    const plano = this.$('#plano');
+    if (!plano || typeof ResizeObserver === 'undefined') return;
+    this._ro = new ResizeObserver(() => {
+      const h = plano.style.height;
+      if (h) this._planoH = h;
+    });
+    this._ro.observe(plano);
   }
 
   /** @param {MouseEvent} e */
