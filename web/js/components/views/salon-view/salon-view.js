@@ -440,6 +440,8 @@ export class SalonView extends AppElement {
     if (!box) return;
     const rect = box.getBoundingClientRect();
     const wrap = mesa.closest('.sal-mesa-wrap');
+    // Sin transición mientras se arrastra (la de .sal-mesa-wrap es para auto-organizar).
+    if (wrap) wrap.style.transition = 'none';
     const gx = this.$('#guide-x');
     const gy = this.$('#guide-y');
     const otras = this._mesas.filter((m) => m.id !== id);
@@ -461,6 +463,7 @@ export class SalonView extends AppElement {
       window.removeEventListener('pointerup', up);
       if (gx) gx.hidden = true;
       if (gy) gy.hidden = true;
+      if (wrap) wrap.style.transition = '';
       if (moved && this._pendingPos && this._pendingPos.id === id) {
         this._setMesa(id, { x: this._pendingPos.x, y: this._pendingPos.y }, true);
       }
