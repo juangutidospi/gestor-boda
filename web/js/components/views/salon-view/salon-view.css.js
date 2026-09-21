@@ -8,31 +8,31 @@ export const styles = css`
 :host { display: block; }
 
 .page-head { padding-top: var(--space-6); }
-/* Fila: título a la izquierda, acciones a la derecha (sobrescribe el column del .page-head base). */
-.sal-head { flex-direction: row; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; }
-.sal-head-txt { flex: 1 1 220px; min-width: 220px; }
-.sal-head-actions { display: flex; align-items: center; gap: var(--space-3); }
+/* Cabecera: título + subtítulo a la izquierda, tira de stats a la derecha. */
+.sal-head { flex-direction: row; flex-wrap: wrap; gap: var(--space-4) var(--space-6); align-items: flex-end; }
+.sal-head-txt { flex: 1 1 260px; min-width: 240px; display: flex; flex-direction: column; gap: 2px; }
+.sal-sub { margin: 2px 0 0; max-width: 46ch; }
 
-/* ---------- Stats ---------- */
-.sal-stats {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider);
-}
-.sal-stat { padding: var(--space-4); border-left: 1px solid var(--color-divider); }
-.sal-stat:first-child { border-left: 0; }
-.sal-stat-label { display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); }
-.sal-stat-value { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 30px; line-height: 1.1; margin-top: 4px; font-variant-numeric: tabular-nums; }
-.sal-stat-note { display: block; font-size: 12px; }
+/* Tira compacta de estadísticas en la cabecera */
+.sal-statstrip { display: flex; gap: var(--space-6); flex-wrap: wrap; align-items: flex-end; }
+.sal-mini { display: flex; flex-direction: column; gap: 1px; }
+.sal-mini-label { white-space: nowrap; }
+.sal-mini-value { font-family: var(--font-heading); font-weight: 600; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.sal-mini-label { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--color-neutral-700); }
 
-/* ---------- Rejilla: escenario + aside ---------- */
-.sal-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
-@media (max-width: 900px) { .sal-grid { grid-template-columns: 1fr; } }
+/* Barra de herramientas (toggle + añadir) */
+.sal-toolbar { display: flex; align-items: center; gap: var(--space-3); border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider); padding: var(--space-3) 0; }
+.sal-toolbar-add { margin-left: auto; }
 
-/* ---------- Plano ---------- */
+/* ---------- Rejilla: escenario + aside lateral ---------- */
+.sal-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+@media (max-width: 920px) { .sal-grid { grid-template-columns: 1fr; } }
+
+/* ---------- Plano (ajustado a la altura de pantalla) ---------- */
 .sal-plano {
-  position: relative; width: 100%; aspect-ratio: 4 / 3; min-height: 440px; overflow: hidden;
+  position: relative; width: 100%; height: min(58vh, 620px); min-height: 380px; overflow: hidden;
   background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 20px;
-  touch-action: none; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-surface) 60%, #fff), 0 1px 3px color-mix(in srgb, var(--color-text) 8%, transparent);
+  touch-action: none; box-shadow: 0 1px 3px color-mix(in srgb, var(--color-text) 8%, transparent);
 }
 .sal-plano-grid { position: absolute; inset: 0; background-image: radial-gradient(var(--color-divider) 1px, transparent 1px); background-size: 28px 28px; opacity: .45; }
 .sal-plano-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 35%, color-mix(in srgb, var(--color-surface) 90%, transparent), color-mix(in srgb, var(--color-accent-100) 55%, transparent)); }
@@ -110,16 +110,19 @@ export const styles = css`
 .sal-leg-dot.sal-lado-novia { box-shadow: 0 0 0 2px var(--lado-novia) inset; }
 
 /* Panel de la mesa seleccionada */
-.sal-panel { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 14px; padding: var(--space-4); margin-top: var(--space-2); box-shadow: var(--shadow-sm); }
-.sal-panel-head { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: baseline; }
-.sal-panel-nombre { font-family: var(--font-heading); font-size: 24px; }
+.sal-panel { background: var(--color-surface); border: 1px solid var(--color-accent-300); border-radius: 14px; padding: var(--space-4); box-shadow: var(--shadow-sm); }
+.sal-panel-top { display: flex; align-items: flex-start; gap: var(--space-2); }
+.sal-panel-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sal-panel-nombre { font-family: var(--font-heading); font-size: 20px; line-height: 1.1; }
 .sal-panel-ocup { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-700); }
-.sal-panel-head [data-forma] { margin-left: auto; }
-.sal-panel-head button { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 12px; }
-.sal-panel-del { color: var(--color-accent-700); }
+.sal-panel-close { flex: 0 0 auto; border: 0; background: none; cursor: pointer; font-size: 20px; line-height: 1; color: var(--color-neutral-700); padding: 0 2px; }
+.sal-panel-close:hover { color: var(--color-text); }
+.sal-panel-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-3); }
+.sal-panel-acts button { font-size: 11px; letter-spacing: .05em; padding: 6px 10px; }
+.sal-panel-del { color: var(--color-accent-700); margin-left: auto; }
 .sal-panel-guests { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-3); }
 .sal-panel-add { margin-top: var(--space-3); }
-.sal-panel-add .input { max-width: 240px; padding: 6px 10px; font-size: 13px; }
+.sal-panel-add .input { width: 100%; padding: 6px 10px; font-size: 13px; }
 .sal-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; padding: 5px 10px; border-radius: 999px; }
 .sal-chip-x { border: 0; background: none; color: inherit; cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
 
@@ -142,10 +145,12 @@ export const styles = css`
 .sal-card-cap .input { padding: 6px 10px; font-size: 13px; }
 
 /* ---------- Aside "Sin asignar" ---------- */
-.sal-aside { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 14px; padding: var(--space-4); position: sticky; top: 88px; }
-.sal-aside-title { margin: 0 0 4px; font-size: 24px; }
+.sal-aside { position: sticky; top: 80px; display: flex; flex-direction: column; gap: var(--space-3); max-height: calc(100vh - 96px); }
+#mesa-panel:empty { display: none; }
+.sal-sin { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 14px; padding: var(--space-4); display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.sal-aside-title { margin: 0 0 4px; font-size: 20px; }
 .sal-aside-sub { font-size: 12px; }
-.sal-unassigned { display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-3); max-height: 60vh; overflow: auto; }
+.sal-unassigned { display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-3); overflow: auto; flex: 1; min-height: 60px; }
 .sal-guest { display: flex; align-items: center; gap: 8px; border: 1px solid var(--color-divider); border-left: 4px solid var(--color-divider); border-radius: 10px; padding: 8px 10px; cursor: grab; }
 .sal-guest.is-dragging { opacity: .5; }
 .sal-guest-txt { min-width: 0; }

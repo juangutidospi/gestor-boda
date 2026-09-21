@@ -234,6 +234,8 @@ export default {
   'inv.toast.quitado': '{nombre} quitado de la lista',
   // Vista Salón
   'salon.title': 'Salón',
+  'salon.subtitle': 'Coloca las mesas en el plano y reparte a los invitados confirmados.',
+  'salon.mesa.cerrar': 'Cerrar',
   'salon.vista.plano': 'Plano',
   'salon.vista.listado': 'Listado',
   'salon.stat.mesas': 'Mesas',

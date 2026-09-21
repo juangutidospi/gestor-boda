@@ -234,6 +234,8 @@ export default {
   'inv.toast.quitado': '{nombre} removed',
   // Seating view
   'salon.title': 'Seating',
+  'salon.subtitle': 'Arrange the tables on the plan and seat your confirmed guests.',
+  'salon.mesa.cerrar': 'Close',
   'salon.vista.plano': 'Floor plan',
   'salon.vista.listado': 'List',
   'salon.stat.mesas': 'Tables',

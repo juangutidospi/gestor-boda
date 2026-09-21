@@ -46,38 +46,38 @@ export class SalonView extends AppElement {
           <div class="sal-head-txt">
             <span class="eyebrow">${escapeHtml(t('nav.salon'))}</span>
             <h1>${escapeHtml(t('salon.title'))}</h1>
+            <p class="muted sal-sub">${escapeHtml(t('salon.subtitle'))}</p>
           </div>
-          <div class="sal-head-actions">
-            <segmented-tabs id="sv-vista"></segmented-tabs>
-            <button class="btn btn-primary" id="sv-add" type="button">+&nbsp;&nbsp;${escapeHtml(t('salon.add'))}</button>
-          </div>
+          <div id="stats" class="sal-statstrip">${this._statsTpl}</div>
         </div>
-        <div id="stats">${this._statsTpl}</div>
+        <div class="sal-toolbar">
+          <segmented-tabs id="sv-vista"></segmented-tabs>
+          <button class="btn btn-primary sal-toolbar-add" id="sv-add" type="button">+&nbsp;&nbsp;${escapeHtml(t('salon.add'))}</button>
+        </div>
         <div id="main">${this._mainTpl}</div>
         <app-toast id="toast"></app-toast>
       </div>`;
   }
 
-  /** @returns {string} Fila de 4 estadísticas. */
+  /** @returns {string} Tira compacta de 4 estadísticas para la cabecera. */
   get _statsTpl() {
     const stats = calcularStats(this._mesas, this._invitados);
-    return `
-      <section class="sal-stats">
-        ${stats.map((s) => `
-          <div class="sal-stat">
-            <span class="sal-stat-label">${escapeHtml(t(s.label))}</span>
-            <span class="sal-stat-value">${escapeHtml(String(s.value))}</span>
-            <span class="sal-stat-note muted">${escapeHtml(t(s.note, s.noteVars))}</span>
-          </div>`).join('')}
-      </section>`;
+    return stats.map((s) => `
+      <div class="sal-mini" title="${escapeHtml(t(s.note, s.noteVars))}">
+        <span class="sal-mini-value">${escapeHtml(String(s.value))}</span>
+        <span class="sal-mini-label">${escapeHtml(t(s.label))}</span>
+      </div>`).join('');
   }
 
-  /** @returns {string} Rejilla: escenario (plano/listado) + aside "Sin asignar". */
+  /** @returns {string} Rejilla: escenario (plano/listado) + aside lateral. */
   get _mainTpl() {
     return `
       <div class="sal-grid">
-        <div id="stage">${this._vista === 'plano' ? this._planoTpl : this._listadoTpl}</div>
-        <aside id="aside" class="sal-aside">${this._sinAsignarTpl}</aside>
+        <div id="stage" class="sal-stage">${this._vista === 'plano' ? this._planoTpl : this._listadoTpl}</div>
+        <aside id="aside" class="sal-aside">
+          <div id="mesa-panel">${this._mesaPanelTpl}</div>
+          <div id="sin-asignar" class="sal-sin">${this._sinAsignarTpl}</div>
+        </aside>
       </div>`;
   }
 
@@ -103,7 +103,6 @@ export class SalonView extends AppElement {
           <span class="sal-leg"><i class="sal-leg-dot sal-lado-novio"></i>${escapeHtml(t('salon.leyenda.novio'))}</span>
           <span class="sal-leg"><i class="sal-leg-dot sal-lado-novia"></i>${escapeHtml(t('salon.leyenda.novia'))}</span>
         </div>
-        <div id="mesa-panel">${this._mesaPanelTpl}</div>
       </div>`;
   }
 
@@ -177,9 +176,14 @@ export class SalonView extends AppElement {
     const libres = sinAsignar(this._confs);
     return `
       <div class="sal-panel">
-        <div class="sal-panel-head">
-          <span class="sal-panel-nombre">${escapeHtml(m.nombre)}</span>
-          <span class="sal-panel-ocup">${escapeHtml(t('salon.mesa.plazas', { ocupadas, cap: m.capacidad }))}</span>
+        <div class="sal-panel-top">
+          <div class="sal-panel-id">
+            <span class="sal-panel-nombre">${escapeHtml(m.nombre)}</span>
+            <span class="sal-panel-ocup">${escapeHtml(t('salon.mesa.plazas', { ocupadas, cap: m.capacidad }))}</span>
+          </div>
+          <button class="sal-panel-close" type="button" data-deselect aria-label="${escapeHtml(t('salon.mesa.cerrar'))}">×</button>
+        </div>
+        <div class="sal-panel-acts">
           <button class="btn btn-secondary" type="button" data-forma="${escapeHtml(m.id)}">${escapeHtml(t(m.forma === 'rectangular' ? 'salon.mesa.hacerRedonda' : 'salon.mesa.hacerRect'))}</button>
           <button class="btn btn-ghost" type="button" data-vaciar="${escapeHtml(m.id)}">${escapeHtml(t('salon.mesa.vaciar'))}</button>
           <button class="btn btn-ghost sal-panel-del" type="button" data-del-mesa="${escapeHtml(m.id)}">${escapeHtml(t('salon.mesa.eliminar'))}</button>
@@ -308,6 +312,7 @@ export class SalonView extends AppElement {
   /** @param {MouseEvent} e */
   _onMainClick(e) {
     if (e.target.closest('#sv-auto')) { this._autoOrganizar(); return; }
+    if (e.target.closest('[data-deselect]')) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); return; }
     const unseat = e.target.closest('[data-unseat]');
     if (unseat) { this._setMesaGuest(unseat.dataset.unseat, null); return; }
     const forma = e.target.closest('[data-forma]');
