@@ -263,6 +263,8 @@ export default {
   'salon.mesa.sobraN': 'Sobran {n} plazas para esta mesa',
   'salon.mesa.capacidad': 'Capacidad',
   'salon.mesa.borrar': 'Borrar',
+  'salon.mesa.eliminar': 'Eliminar mesa',
+  'salon.mesa.anadir': 'Añadir invitado…',
   'salon.mesa.nombreDefault': 'Mesa',
   'salon.sinAsignar.title': 'Sin asignar',
   'salon.sinAsignar.uno': '{n} invitación por sentar',

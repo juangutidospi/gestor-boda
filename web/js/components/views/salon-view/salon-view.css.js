@@ -116,7 +116,10 @@ export const styles = css`
 .sal-panel-ocup { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-700); }
 .sal-panel-head [data-forma] { margin-left: auto; }
 .sal-panel-head button { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 12px; }
+.sal-panel-del { color: var(--color-accent-700); }
 .sal-panel-guests { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-3); }
+.sal-panel-add { margin-top: var(--space-3); }
+.sal-panel-add .input { max-width: 240px; padding: 6px 10px; font-size: 13px; }
 .sal-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; padding: 5px 10px; border-radius: 999px; }
 .sal-chip-x { border: 0; background: none; color: inherit; cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
 

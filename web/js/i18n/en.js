@@ -263,6 +263,8 @@ export default {
   'salon.mesa.sobraN': '{n} seats over capacity',
   'salon.mesa.capacidad': 'Capacity',
   'salon.mesa.borrar': 'Delete',
+  'salon.mesa.eliminar': 'Delete table',
+  'salon.mesa.anadir': 'Add guest…',
   'salon.mesa.nombreDefault': 'Table',
   'salon.sinAsignar.title': 'Unseated',
   'salon.sinAsignar.uno': '{n} invitation to seat',

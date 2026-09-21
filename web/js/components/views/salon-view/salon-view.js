@@ -174,6 +174,7 @@ export class SalonView extends AppElement {
     if (!m) return '';
     const { asignados, ocupadas } = ocupacionMesa(m, this._confs);
     const esVacia = asignados.length === 0;
+    const libres = sinAsignar(this._confs);
     return `
       <div class="sal-panel">
         <div class="sal-panel-head">
@@ -181,12 +182,20 @@ export class SalonView extends AppElement {
           <span class="sal-panel-ocup">${escapeHtml(t('salon.mesa.plazas', { ocupadas, cap: m.capacidad }))}</span>
           <button class="btn btn-secondary" type="button" data-forma="${escapeHtml(m.id)}">${escapeHtml(t(m.forma === 'rectangular' ? 'salon.mesa.hacerRedonda' : 'salon.mesa.hacerRect'))}</button>
           <button class="btn btn-ghost" type="button" data-vaciar="${escapeHtml(m.id)}">${escapeHtml(t('salon.mesa.vaciar'))}</button>
+          <button class="btn btn-ghost sal-panel-del" type="button" data-del-mesa="${escapeHtml(m.id)}">${escapeHtml(t('salon.mesa.eliminar'))}</button>
         </div>
         <div class="sal-panel-guests">
           ${esVacia
     ? `<span class="muted">${escapeHtml(t('salon.mesa.vacia'))}</span>`
     : asignados.map((g) => this._guestChipTpl(g)).join('')}
         </div>
+        ${libres.length ? `
+          <div class="sal-panel-add">
+            <select class="input" data-seat-mesa="${escapeHtml(m.id)}">
+              <option value="">${escapeHtml(t('salon.mesa.anadir'))}</option>
+              ${libres.map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.nombre)}</option>`).join('')}
+            </select>
+          </div>` : ''}
       </div>`;
   }
 
@@ -313,6 +322,8 @@ export class SalonView extends AppElement {
   _onMainChange(e) {
     const seat = e.target.closest('[data-seat]');
     if (seat) { if (seat.value) this._setMesaGuest(seat.dataset.seat, seat.value, true); return; }
+    const seatMesa = e.target.closest('[data-seat-mesa]');
+    if (seatMesa) { if (seatMesa.value) this._setMesaGuest(seatMesa.value, seatMesa.dataset.seatMesa, true); return; }
     const cap = e.target.closest('[data-cap]');
     if (cap) { this._setMesa(cap.dataset.cap, { capacidad: Math.max(2, Math.min(20, Number(cap.value) || 2)) }); return; }
     const rename = e.target.closest('[data-rename]');
