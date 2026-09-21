@@ -726,15 +726,20 @@ export class SalonView extends AppElement {
     if (buscar) this._buscar(buscar.value);
   }
 
-  /** @param {string} q Resalta la mesa y el avatar del invitado que coincide. */
+  /** @param {string} q Resalta al invitado que coincide: su mesa y asiento, o su fila si no está sentado. */
   _buscar(q) {
     const needle = q.trim().toLowerCase();
     this.$$('.is-found').forEach((el) => el.classList.remove('is-found'));
     if (!needle) return;
-    const g = this._confs.find((x) => x.mesa && String(x.nombre).toLowerCase().includes(needle));
+    const g = this._confs.find((x) => String(x.nombre).toLowerCase().includes(needle));
     if (!g) return;
-    this.$$(`[data-mesa-drop="${g.mesa}"]`).forEach((el) => el.classList.add('is-found'));
-    this.$$(`.sal-av[data-guest="${g.id}"]`).forEach((el) => el.classList.add('is-found'));
+    if (g.mesa) {
+      this.$$(`[data-mesa-drop="${g.mesa}"]`).forEach((el) => el.classList.add('is-found'));
+      this.$$(`.sal-av[data-guest="${g.id}"]`).forEach((el) => el.classList.add('is-found'));
+    } else {
+      const row = this.$(`.sal-guest[data-guest="${g.id}"]`);
+      if (row) { row.classList.add('is-found'); row.scrollIntoView({ block: 'nearest' }); }
+    }
   }
 
   /** Repinta solo la fila de stats (tras mover/redimensionar sin repintar el plano). */

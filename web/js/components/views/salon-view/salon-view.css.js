@@ -191,6 +191,7 @@ export const styles = css`
 .sal-resumen-menus { font-size: 12px; }
 .sal-guest { display: flex; align-items: center; gap: 8px; border: 1px solid var(--color-divider); border-left: 4px solid var(--color-divider); border-radius: 10px; padding: 8px 10px; cursor: grab; }
 .sal-guest.is-dragging { opacity: .5; }
+.sal-guest.is-found { border-color: var(--color-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent); }
 .sal-guest-txt { min-width: 0; }
 .sal-guest-name { font-size: 13px; font-weight: 500; }
 .sal-guest-grupo { font-size: 11px; }
