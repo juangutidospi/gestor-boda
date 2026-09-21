@@ -66,9 +66,9 @@ export function calcularStats(mesas, invitados) {
  */
 export function mesaSize(mesa) {
   const rect = mesa.forma === 'rectangular';
-  if (rect) return { rect: true, w: 250, h: 132 };
+  if (rect) return { rect: true, w: 172, h: 92 };
   const cap = Number(mesa.capacidad) || 0;
-  const d = 156 + Math.max(0, cap - 6) * 15;
+  const d = 104 + Math.max(0, cap - 6) * 9;
   return { rect: false, w: d, h: d };
 }
 

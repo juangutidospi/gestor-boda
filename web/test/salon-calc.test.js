@@ -41,8 +41,8 @@ register('salon/calc', () => {
 
   const rSize = mesaSize({ forma: 'rectangular', capacidad: 10 });
   const oSize = mesaSize({ forma: 'redonda', capacidad: 12 });
-  out.push({ name: 'mesaSize rectangular 250x132', ok: rSize.rect && rSize.w === 250 && rSize.h === 132, detail: `${rSize.w}x${rSize.h}` });
-  out.push({ name: 'mesaSize redonda cuadrada crece con capacidad', ok: !oSize.rect && oSize.w === oSize.h && oSize.w === 246, detail: `${oSize.w}` });
+  out.push({ name: 'mesaSize rectangular 172x92', ok: rSize.rect && rSize.w === 172 && rSize.h === 92, detail: `${rSize.w}x${rSize.h}` });
+  out.push({ name: 'mesaSize redonda cuadrada crece con capacidad', ok: !oSize.rect && oSize.w === oSize.h && oSize.w === 158, detail: `${oSize.w}` });
 
   const sillas = sillasGeom({ forma: 'redonda', capacidad: 8 }, 4);
   out.push({ name: 'sillasGeom devuelve n posiciones', ok: sillas.length === 4, detail: String(sillas.length) });

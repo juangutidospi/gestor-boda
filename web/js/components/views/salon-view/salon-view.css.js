@@ -85,22 +85,22 @@ export const styles = css`
 .sal-mesa-plazas { font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-700); font-variant-numeric: tabular-nums; }
 
 /* Asiento ocupado: avatar (persona vista desde arriba) con hombros por lado */
-.sal-av { position: absolute; width: 30px; height: 30px; z-index: 4; pointer-events: none; }
+.sal-av { position: absolute; width: 26px; height: 26px; z-index: 4; pointer-events: none; }
 .sal-av.sal-lado-novia { --sal-lado: var(--lado-novia); }
 .sal-av.sal-lado-novio { --sal-lado: var(--lado-novio); }
-.sal-av-body { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); width: 26px; height: 17px; border-radius: 13px 13px 9px 9px; background: var(--sal-lado); }
-.sal-av-head { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: color-mix(in srgb, var(--color-text) 68%, transparent); display: flex; align-items: center; justify-content: center; z-index: 1; }
-.sal-av-face { width: 11px; height: 11px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent) 34%, var(--color-surface)); }
+.sal-av-body { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); width: 22px; height: 15px; border-radius: 11px 11px 8px 8px; background: var(--sal-lado); }
+.sal-av-head { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 15px; height: 15px; border-radius: 50%; background: color-mix(in srgb, var(--color-text) 68%, transparent); display: flex; align-items: center; justify-content: center; z-index: 1; }
+.sal-av-face { width: 9px; height: 9px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent) 34%, var(--color-surface)); }
 
 /* Nombre del comensal alrededor de la mesa */
-.sal-seat-name { position: absolute; z-index: 4; pointer-events: none; width: 66px; text-align: center; font-size: 9.5px; line-height: 1.05; letter-spacing: .01em; color: var(--color-text); }
+.sal-seat-name { position: absolute; z-index: 4; pointer-events: none; width: 60px; text-align: center; font-size: 9px; line-height: 1.05; letter-spacing: .01em; color: var(--color-text); }
 
 /* Asiento vacío: círculo punteado con su número */
 .sal-seat-empty {
   position: absolute; transform: translate(-50%, -50%); z-index: 2; pointer-events: none;
-  width: 24px; height: 24px; border-radius: 50%; border: 1.5px dashed var(--color-divider);
+  width: 20px; height: 20px; border-radius: 50%; border: 1.5px dashed var(--color-divider);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; color: var(--color-neutral-700); font-variant-numeric: tabular-nums;
+  font-size: 10px; color: var(--color-neutral-700); font-variant-numeric: tabular-nums;
 }
 
 .sal-plano-foot { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; padding: var(--space-3) 4px; font-size: 12px; }
