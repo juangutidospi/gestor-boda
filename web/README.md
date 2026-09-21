@@ -66,7 +66,17 @@ Abrir http://localhost:8080/test/index.html — deben salir todas las suites en 
   el catering es banquete, nunca cuenta en proveedores. Un solo componente
   `views/presupuesto-view/presupuesto-view.js`; lógica pura en `presupuesto-calc.js`
   (reutiliza `coste` de finca-calc, `pax` de invitados-calc y `money`).
-- Resto de vistas (Salón, Timing): próximas fases.
+- **Salón** (Fase 5, implementada): el plano de mesas. Reparte a los invitados
+  **confirmados** en las mesas. Dos vistas (Plano / Listado). En el Plano, las mesas se
+  **arrastran** por el lienzo (pointer, con snap) y cada invitado se dibuja como una silla
+  alrededor coloreada por lado; al pulsar una mesa aparece su panel (ocupación, cambiar
+  forma redonda/rectangular, vaciar, quitar comensales). En el Listado, tarjetas por mesa
+  con nombre y capacidad editables, barra de llenado y aviso de sobrecupo. Aside
+  **"Sin asignar"** con los confirmados sin mesa; premium: **arrastrar un invitado** desde
+  ahí y soltarlo en una mesa (se resaltan las mesas con hueco). Auto-organizar (animado),
+  añadir/borrar mesa. Un solo componente `views/salon-view/salon-view.js`; lógica pura en
+  `salon-calc.js` (stats, ocupación, geometría de sillas, auto-organización).
+- Resto de vistas (Timing): próxima fase.
 
 ## Imágenes
 
