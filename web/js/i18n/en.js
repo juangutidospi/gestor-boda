@@ -363,7 +363,6 @@ export default {
 
   // ---- Budget (Phase 4) ----
   'pres.title': 'Budget',
-  'pres.subtitle': "Set your ceiling and see what's free between what's booked and what's still to decide.",
   'pres.limite': 'Budget limit (€)',
   'pres.total.label': 'Projected total',
   'pres.total.porInv': '{valor} per guest · {inv} budgeted ({cabezas} on list)',
@@ -375,7 +374,6 @@ export default {
   'pres.leg.porConfirmar': 'To confirm',
   'pres.leg.fuera': 'Over budget',
   'pres.leg.senales': 'Deposits paid: {senales}',
-  'pres.footer': 'Catering always lives in the venue & banquet block, never in vendors, so it is not counted twice. Per-guest ratios use the {inv} guests the banquet is budgeted for.',
   'pres.insight.exceso': 'Over by {v}',
   'pres.insight.margen': '{v} free margin',
   'pres.insight.porConfirmar': '{n} vendors to confirm',

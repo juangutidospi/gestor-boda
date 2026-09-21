@@ -363,7 +363,6 @@ export default {
 
   // ---- Presupuesto (Fase 4) ----
   'pres.title': 'Presupuesto',
-  'pres.subtitle': 'Pon tu techo y mira qué queda libre entre lo contratado y lo que aún está por decidir.',
   'pres.limite': 'Presupuesto límite (€)',
   'pres.total.label': 'Total previsto',
   'pres.total.porInv': '{valor} por invitado · {inv} presupuestados ({cabezas} en lista)',
@@ -375,7 +374,6 @@ export default {
   'pres.leg.porConfirmar': 'Por confirmar',
   'pres.leg.fuera': 'Fuera de presupuesto',
   'pres.leg.senales': 'Señales ya pagadas: {senales}',
-  'pres.footer': 'El catering vive siempre en el bloque de finca y banquete, nunca en proveedores, para no contarlo dos veces. Los ratios por invitado usan los {inv} invitados con los que se presupuesta el banquete.',
   'pres.insight.exceso': 'Te pasas por {v}',
   'pres.insight.margen': 'Margen libre {v}',
   'pres.insight.porConfirmar': '{n} proveedores por confirmar',
