@@ -107,38 +107,65 @@ export class SalonView extends AppElement {
       </div>`;
   }
 
-  /** @param {object} m @param {object[]} confs @returns {string} Una mesa en el plano con sus sillas. */
+  /** @param {object} m @param {object[]} confs @returns {string} Una mesa en el plano con sus asientos. */
   _mesaTpl(m, confs) {
     const { asignados, ocupadas, sobra } = ocupacionMesa(m, confs);
+    const cap = Number(m.capacidad) || 0;
     const { rect, w, h } = mesaSize(m);
     const sel = this._mesaSel === m.id;
-    const geom = sillasGeom(m, asignados.length);
-    const chairs = asignados.map((g, i) => this._chairTpl(g, geom[i], sel)).join('');
+    const people = this._peopleDeMesa(asignados);
+    const seats = sillasGeom(m, cap).map((pos, i) => this._seatTpl(people[i], i, pos)).join('');
     return `
-      <div class="sal-mesa-wrap" style="left:${m.x ?? 50}%;top:${m.y ?? 50}%;width:${w + 200}px;height:${h + 90}px">
+      <div class="sal-mesa-wrap" style="left:${m.x ?? 50}%;top:${m.y ?? 50}%;width:${w + 170}px;height:${h + 170}px">
         <div class="sal-mesa ${rect ? 'is-rect' : 'is-round'}${sobra ? ' is-over' : ''}${sel ? ' is-sel' : ''}"
              data-mesa="${escapeHtml(m.id)}" data-mesa-drop="${escapeHtml(m.id)}" style="width:${w}px;height:${h}px">
-          <div class="sal-mesa-nombre">${escapeHtml(m.nombre)}</div>
-          <div class="sal-mesa-plazas">${ocupadas}/${m.capacidad}</div>
+          <div class="sal-mesa-center">
+            <div class="sal-mesa-nombre">${escapeHtml(m.nombre)}</div>
+            <div class="sal-mesa-plazas">${ocupadas}/${cap}</div>
+          </div>
         </div>
-        ${chairs}
+        ${seats}
       </div>`;
   }
 
-  /** @param {object} g @param {{x,y,deg}} pos @param {boolean} sel @returns {string} Una silla. */
-  _chairTpl(g, pos, sel) {
-    const lado = g.lado === 'novia' ? 'novia' : 'novio';
-    const p = Number(g.plus) || 0;
-    const inicial = String(g.nombre).split(' ').filter(Boolean).slice(0, 2).map((wd) => wd[0].toUpperCase()).join('');
-    const pila = `${String(g.nombre).split(' ')[0]}${p ? ` +${p}` : ''}`;
-    const corto = `${g.nombre}${p ? ` +${p}` : ''}`;
-    const izq = pos.x < -1;
+  /**
+   * Expande las invitaciones asignadas en personas (titular + acompañantes), una por
+   * asiento.
+   * @param {object[]} asignados
+   * @returns {Array<{nombre:string, lado:string}>}
+   */
+  _peopleDeMesa(asignados) {
+    const people = [];
+    asignados.forEach((g) => {
+      people.push({ nombre: g.nombre, lado: g.lado });
+      const comps = Array.isArray(g.acompanantes) ? g.acompanantes : [];
+      const n = Number(g.plus) || 0;
+      for (let k = 0; k < n; k++) people.push({ nombre: comps[k] || `${String(g.nombre).split(' ')[0]} +1`, lado: g.lado });
+    });
+    return people;
+  }
+
+  /**
+   * @param {{nombre:string, lado:string}|undefined} person Persona sentada, o undefined (vacío).
+   * @param {number} i Índice del asiento (para numerar los vacíos).
+   * @param {object} pos Geometría del asiento.
+   * @returns {string} Avatar + nombre (ocupado) o círculo punteado con número (vacío).
+   */
+  _seatTpl(person, i, pos) {
+    const at = `left:calc(50% + ${pos.x.toFixed(1)}px);top:calc(50% + ${pos.y.toFixed(1)}px)`;
+    if (!person) {
+      return `<span class="sal-seat-empty" style="${at}">${i + 1}</span>`;
+    }
+    const lado = person.lado === 'novia' ? 'novia' : 'novio';
+    let nameDeg = pos.deg;
+    if (nameDeg > 90 && nameDeg < 270) nameDeg -= 180;
+    const nameAt = `left:calc(50% + ${pos.nx.toFixed(1)}px);top:calc(50% + ${pos.ny.toFixed(1)}px)`;
     return `
-      <span class="sal-chair sal-lado-${lado}" title="${escapeHtml(corto)}"
-            style="left:calc(50% + ${pos.x.toFixed(1)}px);top:calc(50% + ${pos.y.toFixed(1)}px);transform:translate(-50%,-50%) rotate(${pos.deg.toFixed(1)}deg)">
-        <span class="sal-chair-inner" style="transform:rotate(${(-pos.deg).toFixed(1)}deg)">${escapeHtml(inicial)}</span>
-        ${sel ? `<span class="sal-chair-label" style="transform:translateY(-50%) rotate(${(-pos.deg).toFixed(1)}deg);${izq ? 'right' : 'left'}:24px">${escapeHtml(pila)}</span>` : ''}
-      </span>`;
+      <span class="sal-av sal-lado-${lado}" style="${at};transform:translate(-50%,-50%) rotate(${pos.faceDeg.toFixed(1)}deg)" title="${escapeHtml(person.nombre)}">
+        <span class="sal-av-head"><span class="sal-av-face"></span></span>
+        <span class="sal-av-body"></span>
+      </span>
+      <span class="sal-seat-name" style="${nameAt};transform:translate(-50%,-50%) rotate(${nameDeg.toFixed(1)}deg)">${escapeHtml(person.nombre)}</span>`;
   }
 
   /** @returns {string} Panel de la mesa seleccionada (o vacío). */

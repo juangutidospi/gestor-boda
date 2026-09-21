@@ -60,33 +60,48 @@ export const styles = css`
 .sal-mesa-wrap { position: absolute; transform: translate(-50%, -50%); pointer-events: none; transition: left .5s cubic-bezier(.22,.61,.36,1), top .5s cubic-bezier(.22,.61,.36,1); }
 .sal-mesa {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; pointer-events: auto;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  background: var(--color-surface); cursor: grab; user-select: none; touch-action: none;
-  box-shadow: 0 0 0 1px var(--color-divider), 0 3px 12px color-mix(in srgb, var(--color-text) 10%, transparent);
-  transition: box-shadow .18s ease;
+  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+  border: 1px solid var(--color-divider); cursor: grab; user-select: none; touch-action: none;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--color-text) 10%, transparent);
+  transition: box-shadow .18s ease, border-color .18s ease;
 }
 .sal-mesa.is-round { border-radius: 50%; }
-.sal-mesa.is-rect { border-radius: 10px; }
+.sal-mesa.is-rect { border-radius: 16px; }
 .sal-mesa:active { cursor: grabbing; }
 .sal-mesa.is-sel { box-shadow: 0 0 0 1.5px var(--color-accent), 0 10px 26px color-mix(in srgb, var(--color-text) 20%, transparent); }
-.sal-mesa.is-over { box-shadow: 0 0 0 1.5px var(--color-accent); background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface)); }
+.sal-mesa.is-over { border-color: var(--color-accent); }
 .sal-mesa.is-droppable { box-shadow: 0 0 0 1.5px var(--color-accent-300); }
-.sal-mesa.is-drop-over { box-shadow: 0 0 0 2px var(--color-accent); background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface)); }
-.sal-mesa-nombre { font-family: var(--font-heading); font-size: 17px; line-height: 1.05; text-align: center; padding: 0 8px; }
+.sal-mesa.is-drop-over { box-shadow: 0 0 0 2px var(--color-accent); }
+.sal-mesa-center {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 58%; height: 58%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; text-align: center; padding: 0 6px;
+  background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-divider), 0 1px 4px color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+.sal-mesa.is-round .sal-mesa-center { border-radius: 50%; }
+.sal-mesa.is-rect .sal-mesa-center { border-radius: 10px; width: 64%; height: 58%; }
+.sal-mesa.is-over .sal-mesa-center { color: var(--color-accent-700); }
+.sal-mesa-nombre { font-family: var(--font-heading); font-size: 15px; line-height: 1.05; }
 .sal-mesa-plazas { font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-700); font-variant-numeric: tabular-nums; }
 
-/* Silla (invitado) */
-.sal-chair {
-  position: absolute; z-index: 2; pointer-events: auto; width: 21px; height: 21px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; background: var(--color-surface);
-  box-shadow: 0 0 0 1px var(--sal-lado, var(--color-divider)), 0 1px 2px color-mix(in srgb, var(--color-text) 16%, transparent);
+/* Asiento ocupado: avatar (persona vista desde arriba) con hombros por lado */
+.sal-av { position: absolute; width: 30px; height: 30px; z-index: 4; pointer-events: none; }
+.sal-av.sal-lado-novia { --sal-lado: var(--lado-novia); }
+.sal-av.sal-lado-novio { --sal-lado: var(--lado-novio); }
+.sal-av-body { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); width: 26px; height: 17px; border-radius: 13px 13px 9px 9px; background: var(--sal-lado); }
+.sal-av-head { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: color-mix(in srgb, var(--color-text) 68%, transparent); display: flex; align-items: center; justify-content: center; z-index: 1; }
+.sal-av-face { width: 11px; height: 11px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent) 34%, var(--color-surface)); }
+
+/* Nombre del comensal alrededor de la mesa */
+.sal-seat-name { position: absolute; z-index: 4; pointer-events: none; width: 66px; text-align: center; font-size: 9.5px; line-height: 1.05; letter-spacing: .01em; color: var(--color-text); }
+
+/* Asiento vacío: círculo punteado con su número */
+.sal-seat-empty {
+  position: absolute; transform: translate(-50%, -50%); z-index: 2; pointer-events: none;
+  width: 24px; height: 24px; border-radius: 50%; border: 1.5px dashed var(--color-divider);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--color-neutral-700); font-variant-numeric: tabular-nums;
 }
-.sal-chair.sal-lado-novia { --sal-lado: var(--lado-novia); }
-.sal-chair.sal-lado-novio { --sal-lado: var(--lado-novio); }
-.sal-chair-inner { font-family: var(--font-body); font-size: 8.5px; font-weight: 500; letter-spacing: .04em; color: var(--sal-lado-ink, var(--color-text)); }
-.sal-chair.sal-lado-novia .sal-chair-inner { color: var(--lado-novia-ink); }
-.sal-chair.sal-lado-novio .sal-chair-inner { color: var(--lado-novio-ink); }
-.sal-chair-label { position: absolute; top: 50%; white-space: nowrap; font-size: 9px; line-height: 1; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-700); }
 
 .sal-plano-foot { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; padding: var(--space-3) 4px; font-size: 12px; }
 .sal-leg { display: inline-flex; align-items: center; gap: 6px; }

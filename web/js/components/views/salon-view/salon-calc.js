@@ -66,28 +66,35 @@ export function calcularStats(mesas, invitados) {
  */
 export function mesaSize(mesa) {
   const rect = mesa.forma === 'rectangular';
-  const w = rect ? 210 : 104 + Math.max(0, (Number(mesa.capacidad) || 0) - 8) * 5;
-  return { rect, w, h: rect ? 84 : w };
+  if (rect) return { rect: true, w: 250, h: 132 };
+  const cap = Number(mesa.capacidad) || 0;
+  const d = 156 + Math.max(0, cap - 6) * 15;
+  return { rect: false, w: d, h: d };
 }
 
 /**
- * Posiciones de las `n` sillas alrededor de la mesa (elipse). Primera silla arriba.
+ * Posiciones de los `n` asientos sobre el borde de la mesa (elipse). Primer asiento
+ * arriba. Devuelve, por asiento, el punto del asiento (`x,y`), el punto de la etiqueta
+ * de nombre por fuera (`nx,ny`), el ángulo tangencial (`deg`) y el de encarado al centro
+ * (`faceDeg`).
  * @param {object} mesa
  * @param {number} n
- * @returns {Array<{x:number, y:number, deg:number}>} Coordenadas relativas al centro (px).
+ * @returns {Array<{x:number, y:number, nx:number, ny:number, deg:number, faceDeg:number}>}
  */
 export function sillasGeom(mesa, n) {
   if (n <= 0) return [];
   const { rect, w, h } = mesaSize(mesa);
-  const rx = w / 2 + (rect ? 22 : 20);
-  const ry = h / 2 + 20;
+  const rx = w / 2 - (rect ? 8 : 4);
+  const ry = h / 2 - (rect ? 8 : 4);
   return Array.from({ length: n }, (_, i) => {
     const ang = (-Math.PI / 2) + (i * 2 * Math.PI) / n;
-    return {
-      x: Math.cos(ang) * rx,
-      y: Math.sin(ang) * ry,
-      deg: (ang * 180) / Math.PI + 90,
-    };
+    const cos = Math.cos(ang);
+    const sin = Math.sin(ang);
+    const x = cos * rx;
+    const y = sin * ry;
+    const r = Math.hypot(x, y) || 1;
+    const deg = (ang * 180) / Math.PI + 90;
+    return { x, y, nx: x + (x / r) * 30, ny: y + (y / r) * 30, deg, faceDeg: deg + 180 };
   });
 }
 
