@@ -4,6 +4,7 @@ import { styles } from './salon-view.css.js';
 import { t } from '../../../i18n/index.js';
 import {
   confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar, ladoTokens,
+  autoSentar, resumenMesa,
 } from './salon-calc.js';
 import { ensureSeeded, mesasRepo, invitadosRepo } from '../../../core/repos.js';
 import '../../ui/segmented-tabs/segmented-tabs.js';
@@ -139,10 +140,10 @@ export class SalonView extends AppElement {
   _peopleDeMesa(asignados) {
     const people = [];
     asignados.forEach((g) => {
-      people.push({ nombre: g.nombre, lado: g.lado });
+      people.push({ id: g.id, nombre: g.nombre, lado: g.lado });
       const comps = Array.isArray(g.acompanantes) ? g.acompanantes : [];
       const n = Number(g.plus) || 0;
-      for (let k = 0; k < n; k++) people.push({ nombre: comps[k] || `${String(g.nombre).split(' ')[0]} +1`, lado: g.lado });
+      for (let k = 0; k < n; k++) people.push({ id: g.id, nombre: comps[k] || `${String(g.nombre).split(' ')[0]} +1`, lado: g.lado });
     });
     return people;
   }
@@ -163,7 +164,7 @@ export class SalonView extends AppElement {
     if (nameDeg > 90 && nameDeg < 270) nameDeg -= 180;
     const nameAt = `left:calc(50% + ${pos.nx.toFixed(1)}px);top:calc(50% + ${pos.ny.toFixed(1)}px)`;
     return `
-      <span class="sal-av sal-lado-${lado}" style="${at};transform:translate(-50%,-50%) rotate(${pos.faceDeg.toFixed(1)}deg)" title="${escapeHtml(person.nombre)}">
+      <span class="sal-av sal-lado-${lado}" draggable="true" data-guest="${escapeHtml(person.id)}" style="${at};transform:translate(-50%,-50%) rotate(${pos.faceDeg.toFixed(1)}deg)" title="${escapeHtml(person.nombre)}">
         <span class="sal-av-head"><span class="sal-av-face"></span></span>
         <span class="sal-av-body"></span>
       </span>
@@ -196,6 +197,7 @@ export class SalonView extends AppElement {
     ? `<span class="muted">${escapeHtml(t('salon.mesa.vacia'))}</span>`
     : asignados.map((g) => this._guestChipTpl(g)).join('')}
         </div>
+        ${esVacia ? '' : this._resumenMesaTpl(asignados)}
         ${libres.length ? `
           <div class="sal-panel-add">
             <select class="input" data-seat-mesa="${escapeHtml(m.id)}">
@@ -203,6 +205,22 @@ export class SalonView extends AppElement {
               ${libres.map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.nombre)}</option>`).join('')}
             </select>
           </div>` : ''}
+      </div>`;
+  }
+
+  /** @param {object[]} asignados @returns {string} Resumen de la mesa: lado + menús especiales. */
+  _resumenMesaTpl(asignados) {
+    const r = resumenMesa(asignados);
+    const menus = r.especiales
+      ? `${escapeHtml(t('salon.resumen.menus'))}: ${r.menus.map((x) => `${escapeHtml(x.menu)} ×${x.n}`).join(' · ')}`
+      : escapeHtml(t('salon.resumen.sinMenus'));
+    return `
+      <div class="sal-resumen">
+        <div class="sal-resumen-lado">
+          <span class="sal-leg"><i class="sal-leg-dot sal-lado-novia"></i>${r.novia}</span>
+          <span class="sal-leg"><i class="sal-leg-dot sal-lado-novio"></i>${r.novio}</span>
+        </div>
+        <div class="sal-resumen-menus muted">${menus}</div>
       </div>`;
   }
 
@@ -259,9 +277,15 @@ export class SalonView extends AppElement {
       : t('salon.sinAsignar.nada');
     const opciones = this._mesas.map((m) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.nombre)}</option>`).join('');
     return `
-      <h3 class="sal-aside-title">${escapeHtml(t('salon.sinAsignar.title'))}</h3>
+      <div class="sal-aside-head">
+        <h3 class="sal-aside-title">${escapeHtml(t('salon.sinAsignar.title'))}</h3>
+        ${sa.length ? `<button class="btn btn-primary sal-autosentar" type="button" id="sv-autosentar">${escapeHtml(t('salon.autoSentar'))}</button>` : ''}
+      </div>
       <div class="muted sal-aside-sub">${escapeHtml(label)}</div>
-      <div class="sal-unassigned">
+      <div class="field sal-search">
+        <input class="input" type="search" id="sv-buscar" placeholder="${escapeHtml(t('salon.buscar.ph'))}">
+      </div>
+      <div class="sal-unassigned" data-sin-drop>
         ${sa.map((g) => {
     const { color } = ladoTokens(g.lado);
     return `
@@ -297,6 +321,7 @@ export class SalonView extends AppElement {
     this.on(this.$('#main'), 'click', (e) => this._onMainClick(e));
     this.on(this.$('#main'), 'pointerdown', (e) => this._onPointerDown(e));
     this.on(this.$('#main'), 'change', (e) => this._onMainChange(e));
+    this.on(this.$('#main'), 'input', (e) => this._onMainInput(e));
     this.on(this.$('#main'), 'dragstart', (e) => this._onGuestDragStart(e));
     this.on(this.$('#main'), 'dragover', (e) => this._onGuestDragOver(e));
     this.on(this.$('#main'), 'dragleave', (e) => this._onGuestDragLeave(e));
@@ -331,6 +356,7 @@ export class SalonView extends AppElement {
   /** @param {MouseEvent} e */
   _onMainClick(e) {
     if (e.target.closest('#sv-auto')) { this._autoOrganizar(); return; }
+    if (e.target.closest('#sv-autosentar')) { this._autoSentar(); return; }
     if (e.target.closest('[data-deselect]')) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); return; }
     const unseat = e.target.closest('[data-unseat]');
     if (unseat) { this._setMesaGuest(unseat.dataset.unseat, null); return; }
@@ -425,7 +451,7 @@ export class SalonView extends AppElement {
 
   /** @param {DragEvent} e */
   _onGuestDragOver(e) {
-    const target = e.target.closest('[data-mesa-drop]');
+    const target = e.target.closest('[data-mesa-drop], [data-sin-drop]');
     if (!target || !this._dragGuestId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -434,19 +460,21 @@ export class SalonView extends AppElement {
 
   /** @param {DragEvent} e */
   _onGuestDragLeave(e) {
-    const target = e.target.closest('[data-mesa-drop]');
+    const target = e.target.closest('[data-mesa-drop], [data-sin-drop]');
     if (target && !target.contains(e.relatedTarget)) target.classList.remove('is-drop-over');
   }
 
   /** @param {DragEvent} e */
   _onGuestDrop(e) {
-    const target = e.target.closest('[data-mesa-drop]');
-    if (!target) return;
-    e.preventDefault();
     const gid = e.dataTransfer.getData('text/plain') || this._dragGuestId;
-    const mid = target.dataset.mesaDrop;
+    const mesa = e.target.closest('[data-mesa-drop]');
+    const sin = e.target.closest('[data-sin-drop]');
+    if (!mesa && !sin) return;
+    e.preventDefault();
     this._onGuestDragEnd();
-    if (gid && mid) this._setMesaGuest(gid, mid, true);
+    if (!gid) return;
+    if (mesa) this._setMesaGuest(gid, mesa.dataset.mesaDrop, true);
+    else this._setMesaGuest(gid, null);
   }
 
   /** Limpia las clases de arrastre de invitado. */
@@ -534,6 +562,37 @@ export class SalonView extends AppElement {
       if (wrap) { wrap.style.left = `${m.x}%`; wrap.style.top = `${m.y}%`; }
     });
     this._toast('salon.toast.auto');
+  }
+
+  /** Sienta a todos los confirmados sin mesa (auto-sentado inteligente) y persiste. */
+  _autoSentar() {
+    const asign = autoSentar(this._mesas, this._invitados);
+    if (!asign.length) return;
+    asign.forEach(({ id, mesa }) => {
+      const g = this._invitados.find((x) => x.id === id);
+      if (!g) return;
+      const idx = this._invitados.findIndex((x) => x.id === id);
+      this._invitados[idx] = invitadosRepo.upsert({ ...g, mesa });
+    });
+    this._apply();
+    this._toast('salon.toast.sentados', { n: asign.length });
+  }
+
+  /** @param {Event} e Buscador de invitado (resalta su mesa y su asiento). */
+  _onMainInput(e) {
+    const buscar = e.target.closest('#sv-buscar');
+    if (buscar) this._buscar(buscar.value);
+  }
+
+  /** @param {string} q Resalta la mesa y el avatar del invitado que coincide. */
+  _buscar(q) {
+    const needle = q.trim().toLowerCase();
+    this.$$('.is-found').forEach((el) => el.classList.remove('is-found'));
+    if (!needle) return;
+    const g = this._confs.find((x) => x.mesa && String(x.nombre).toLowerCase().includes(needle));
+    if (!g) return;
+    this.$$(`[data-mesa-drop="${g.mesa}"]`).forEach((el) => el.classList.add('is-found'));
+    this.$$(`.sal-av[data-guest="${g.id}"]`).forEach((el) => el.classList.add('is-found'));
   }
 
   /** Repinta solo la fila de stats (tras mover/redimensionar sin repintar el plano). */

@@ -74,6 +74,9 @@ export const styles = css`
 .sal-mesa.is-over { border-color: var(--color-accent); }
 .sal-mesa.is-droppable { box-shadow: 0 0 0 1.5px var(--color-accent-300); }
 .sal-mesa.is-drop-over { box-shadow: 0 0 0 2px var(--color-accent); }
+.sal-mesa.is-found { box-shadow: 0 0 0 2px var(--color-accent), 0 0 0 7px color-mix(in srgb, var(--color-accent) 22%, transparent); }
+.sal-card.is-found { border-color: var(--color-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent); }
+.sal-unassigned.is-drop-over { outline: 2px dashed var(--color-accent-300); outline-offset: 3px; border-radius: 10px; }
 .sal-mesa-center {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: 58%; height: 58%; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -87,7 +90,10 @@ export const styles = css`
 .sal-mesa-plazas { font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-700); font-variant-numeric: tabular-nums; }
 
 /* Asiento ocupado: avatar (persona vista desde arriba) con hombros por lado */
-.sal-av { position: absolute; width: 26px; height: 26px; z-index: 4; pointer-events: none; }
+.sal-av { position: absolute; width: 26px; height: 26px; z-index: 4; pointer-events: auto; cursor: grab; }
+.sal-av:active { cursor: grabbing; }
+.sal-av.is-dragging { opacity: .4; }
+.sal-av.is-found { outline: 2px solid var(--color-accent); outline-offset: 1px; border-radius: 50%; }
 .sal-av.sal-lado-novia { --sal-lado: var(--lado-novia); }
 .sal-av.sal-lado-novio { --sal-lado: var(--lado-novio); }
 .sal-av-body { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); width: 22px; height: 15px; border-radius: 11px 11px 8px 8px; background: var(--sal-lado); }
@@ -149,9 +155,18 @@ export const styles = css`
 .sal-aside { position: sticky; top: 80px; display: flex; flex-direction: column; gap: var(--space-3); max-height: calc(100vh - 96px); }
 #mesa-panel:empty { display: none; }
 .sal-sin { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 14px; padding: var(--space-4); display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
-.sal-aside-title { margin: 0 0 4px; font-size: 20px; }
-.sal-aside-sub { font-size: 12px; }
+.sal-aside-head { display: flex; align-items: center; gap: var(--space-2); }
+.sal-aside-title { margin: 0; font-size: 20px; flex: 1; }
+.sal-autosentar { font-size: 12px; padding: 6px 12px; white-space: nowrap; }
+.sal-aside-sub { font-size: 12px; margin-top: 2px; }
+.sal-search { margin-top: var(--space-3); }
+.sal-search .input { width: 100%; }
 .sal-unassigned { display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-3); overflow: auto; flex: 1; min-height: 60px; }
+
+/* Resumen de mesa (lado + menús) en el panel */
+.sal-resumen { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-divider); display: flex; flex-direction: column; gap: 5px; }
+.sal-resumen-lado { display: flex; gap: var(--space-4); font-size: 13px; font-variant-numeric: tabular-nums; }
+.sal-resumen-menus { font-size: 12px; }
 .sal-guest { display: flex; align-items: center; gap: 8px; border: 1px solid var(--color-divider); border-left: 4px solid var(--color-divider); border-radius: 10px; padding: 8px 10px; cursor: grab; }
 .sal-guest.is-dragging { opacity: .5; }
 .sal-guest-txt { min-width: 0; }
