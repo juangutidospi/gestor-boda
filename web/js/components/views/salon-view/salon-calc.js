@@ -99,6 +99,58 @@ export function sillasGeom(mesa, n) {
 }
 
 /**
+ * Auto-sentado inteligente: reparte a los confirmados sin mesa manteniendo juntos los
+ * grupos/círculos y sin superar la capacidad. Devuelve las asignaciones a aplicar.
+ * @param {object[]} mesas
+ * @param {object[]} invitados
+ * @returns {Array<{id:string, mesa:string}>}
+ */
+export function autoSentar(mesas, invitados) {
+  const confs = confirmados(invitados);
+  const sumP = (arr) => arr.reduce((a, g) => a + plazas(g), 0);
+  const free = {};
+  mesas.forEach((m) => {
+    const seated = confs.filter((g) => g.mesa === m.id).reduce((a, g) => a + plazas(g), 0);
+    free[m.id] = Math.max(0, (Number(m.capacidad) || 0) - seated);
+  });
+  // Agrupa a los sin-mesa por grupo/círculo y ordena por tamaño (los grandes primero).
+  const grupos = {};
+  confs.filter((g) => !g.mesa).forEach((g) => { (grupos[g.grupo || '—'] = grupos[g.grupo || '—'] || []).push(g); });
+  const ordenados = Object.values(grupos).sort((a, b) => sumP(b) - sumP(a));
+  const asign = [];
+  const place = (g, mesaId) => { asign.push({ id: g.id, mesa: mesaId }); free[mesaId] -= plazas(g); };
+  ordenados.forEach((grupo) => {
+    const need = sumP(grupo);
+    // Mesa donde cabe el grupo entero con el ajuste más justo (menos hueco sobrante).
+    const juntos = mesas.map((m) => m.id).filter((id) => free[id] >= need).sort((a, b) => free[a] - free[b])[0];
+    if (juntos) { grupo.forEach((g) => place(g, juntos)); return; }
+    // Si no cabe entero, coloca cada invitación en la mesa con más hueco que la admita.
+    grupo.forEach((g) => {
+      const id = mesas.map((m) => m.id).filter((mid) => free[mid] >= plazas(g)).sort((a, b) => free[b] - free[a])[0];
+      if (id) place(g, id);
+    });
+  });
+  return asign;
+}
+
+/**
+ * Resumen de una mesa para el catering: reparto por lado y menús especiales (no estándar).
+ * @param {object[]} asignados Confirmados sentados en la mesa.
+ * @returns {{novia:number, novio:number, menus:Array<{menu:string, n:number}>, especiales:number}}
+ */
+export function resumenMesa(asignados) {
+  const novia = asignados.filter((g) => g.lado === 'novia').reduce((a, g) => a + plazas(g), 0);
+  const novio = asignados.reduce((a, g) => a + plazas(g), 0) - novia;
+  const cuenta = {};
+  asignados.forEach((g) => {
+    const m = (g.menu || '').trim();
+    if (m && m.toLowerCase() !== 'estándar' && m.toLowerCase() !== 'estandar') cuenta[m] = (cuenta[m] || 0) + 1;
+  });
+  const menus = Object.entries(cuenta).map(([menu, n]) => ({ menu, n })).sort((a, b) => b.n - a.n);
+  return { novia, novio, menus, especiales: menus.reduce((a, x) => a + x.n, 0) };
+}
+
+/**
  * Recoloca las mesas: la rectangular (presidencial) arriba centrada; las redondas en
  * rejilla centrada. Devuelve una copia con `x,y` nuevos.
  * @param {object[]} mesas

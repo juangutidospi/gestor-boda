@@ -1,6 +1,6 @@
 import { register } from './runner.js';
 import {
-  plazas, confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar,
+  plazas, confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar, autoSentar, resumenMesa,
 } from '../js/components/views/salon-view/salon-calc.js';
 
 register('salon/calc', () => {
@@ -51,6 +51,27 @@ register('salon/calc', () => {
   const org = autoOrganizar(mesas);
   const pres = org.find((m) => m.forma === 'rectangular');
   out.push({ name: 'autoOrganizar pone la presidencial arriba (y=19)', ok: pres.x === 50 && pres.y === 19, detail: `${pres.x},${pres.y}` });
+
+  // Auto-sentar: mantiene grupos juntos y no supera capacidad.
+  const mesasAS = [{ id: 'A', capacidad: 4 }, { id: 'B', capacidad: 4 }];
+  const invAS = [
+    g({ id: 'f1', grupo: 'Familia', mesa: null }), g({ id: 'f2', grupo: 'Familia', mesa: null }), g({ id: 'f3', grupo: 'Familia', mesa: null }),
+    g({ id: 'a1', grupo: 'Amigos', mesa: null }), g({ id: 'a2', grupo: 'Amigos', mesa: null }),
+  ];
+  const as = autoSentar(mesasAS, invAS);
+  const mesaDe = (id) => as.find((x) => x.id === id)?.mesa;
+  out.push({ name: 'autoSentar asigna a todos', ok: as.length === 5, detail: String(as.length) });
+  out.push({ name: 'autoSentar mantiene la Familia junta', ok: mesaDe('f1') === mesaDe('f2') && mesaDe('f2') === mesaDe('f3'), detail: `${mesaDe('f1')},${mesaDe('f2')},${mesaDe('f3')}` });
+  out.push({ name: 'autoSentar respeta capacidad (no mete 5 en una de 4)', ok: as.filter((x) => x.mesa === mesaDe('f1')).length <= 4, detail: '' });
+
+  // Resumen de mesa: lado y menús especiales.
+  const res = resumenMesa([
+    g({ lado: 'novia', menu: 'Vegano', plus: 0 }),
+    g({ lado: 'novio', menu: 'Estándar', plus: 1 }),
+    g({ lado: 'novia', menu: 'Sin gluten', plus: 0 }),
+  ]);
+  out.push({ name: 'resumenMesa cuenta lado (novia=2 plazas, novio=2)', ok: res.novia === 2 && res.novio === 2, detail: `${res.novia}/${res.novio}` });
+  out.push({ name: 'resumenMesa cuenta menús especiales (2, sin estándar)', ok: res.especiales === 2 && res.menus.length === 2, detail: JSON.stringify(res.menus) });
 
   return out;
 });
