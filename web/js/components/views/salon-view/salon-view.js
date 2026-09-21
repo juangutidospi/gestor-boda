@@ -1,7 +1,7 @@
 import { AppElement } from '../../../core/AppElement.js';
 import { escapeHtml } from '../../../core/escape-html.js';
 import { styles } from './salon-view.css.js';
-import { t } from '../../../i18n/index.js';
+import { t, getLang } from '../../../i18n/index.js';
 import {
   confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar, ladoTokens,
   autoSentar, resumenMesa,
@@ -51,6 +51,7 @@ export class SalonView extends AppElement {
           <segmented-tabs id="sv-vista"></segmented-tabs>
           <div id="stats" class="sal-statstrip">${this._statsTpl}</div>
           ${this._legendTpl}
+          <button class="btn btn-secondary sal-toolbar-export" id="sv-export" type="button">${escapeHtml(t('salon.export'))}</button>
           <button class="btn btn-primary sal-toolbar-add" id="sv-add" type="button">+&nbsp;&nbsp;${escapeHtml(t('salon.add'))}</button>
         </div>
         <div id="main">${this._mainTpl}</div>
@@ -325,6 +326,7 @@ export class SalonView extends AppElement {
       this.on(vt, 'change', (e) => { this._vista = e.detail.value; this._apply(); });
     }
     this.on(this.$('#sv-add'), 'click', () => this._addMesa());
+    this.on(this.$('#sv-export'), 'click', () => this._exportar());
     // Escenario: clicks, arrastre de mesa (pointer) y soltar invitado (DnD).
     this.on(this.$('#main'), 'click', (e) => this._onMainClick(e));
     this.on(this.$('#main'), 'pointerdown', (e) => this._onPointerDown(e));
@@ -589,6 +591,46 @@ export class SalonView extends AppElement {
     });
     this._apply();
     this._toast('salon.toast.sentados', { n: asign.length });
+  }
+
+  /** Abre una hoja imprimible (PDF) con el reparto de invitados por mesa. */
+  _exportar() {
+    const confs = this._confs;
+    const bloques = this._mesas.map((m) => {
+      const { asignados, ocupadas } = ocupacionMesa(m, confs);
+      const r = resumenMesa(asignados);
+      const guests = asignados.map((g) => escapeHtml(`${g.nombre}${Number(g.plus) ? ` +${g.plus}` : ''}`));
+      const especiales = r.especiales
+        ? `<p class="menus">${escapeHtml(t('salon.export.especiales'))}: ${r.menus.map((x) => escapeHtml(`${x.menu} ×${x.n}`)).join(' · ')}</p>`
+        : '';
+      return `<section class="mesa">
+        <h2>${escapeHtml(m.nombre)} <span>${escapeHtml(t('salon.export.plazas', { ocupadas, cap: m.capacidad }))}</span></h2>
+        ${guests.length ? `<ol>${guests.map((n) => `<li>${n}</li>`).join('')}</ol>` : `<p class="empty">${escapeHtml(t('salon.export.vacia'))}</p>`}
+        ${especiales}
+      </section>`;
+    }).join('');
+    const styles = `
+      @page { size: A4; margin: 16mm; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, system-ui, sans-serif; color: #2b241c; background: #fff; margin: 0; padding: 24px; }
+      header { border-bottom: 3px solid #b07d46; padding-bottom: 10px; margin-bottom: 20px; }
+      h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 30px; margin: 0; }
+      header p { margin: 4px 0 0; color: #7a6a55; }
+      .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+      .mesa { border: 1px solid #e6dccb; border-radius: 12px; padding: 12px 16px; break-inside: avoid; }
+      .mesa h2 { font-family: Georgia, serif; font-size: 18px; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
+      .mesa h2 span { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #9a8871; font-family: -apple-system, sans-serif; }
+      ol { margin: 0; padding-left: 20px; }
+      li { padding: 2px 0; font-size: 13px; }
+      .empty { color: #9a8871; font-style: italic; font-size: 13px; margin: 4px 0; }
+      .menus { margin: 8px 0 0; font-size: 12px; color: #b07d46; }`;
+    const doc = `<!doctype html><html lang="${getLang()}"><head><meta charset="utf-8"><title>${escapeHtml(t('salon.export.title'))}</title><style>${styles}</style></head><body><header><h1>${escapeHtml(t('salon.export.title'))}</h1><p>${escapeHtml(t('salon.export.sub'))}</p></header><div class="grid">${bloques}</div></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { this._toast('salon.export'); return; }
+    w.document.write(doc);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch { /* noop */ } }, 300);
   }
 
   /** @param {Event} e Buscador de invitado (resalta su mesa y su asiento). */
