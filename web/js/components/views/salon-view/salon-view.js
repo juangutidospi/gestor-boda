@@ -28,6 +28,8 @@ export class SalonView extends AppElement {
   _mesaSel = null;
   /** Id de la mesa que se está arrastrando (pointer), o null. */
   _dragMesaId = null;
+  /** Texto del buscador (filtra). */
+  _q = '';
   /** Alto elegido a mano para el plano (p. ej. '720px'), o null. */
   _planoH = null;
   /** @type {ResizeObserver|null} */
@@ -305,7 +307,7 @@ export class SalonView extends AppElement {
       </div>
       <div class="muted sal-aside-sub">${escapeHtml(label)}</div>
       <div class="field sal-search">
-        <input class="input" type="search" id="sv-buscar" placeholder="${escapeHtml(t('salon.buscar.ph'))}">
+        <input class="input" type="search" id="sv-buscar" placeholder="${escapeHtml(t('salon.buscar.ph'))}" value="${escapeHtml(this._q)}">
       </div>
       <div class="sal-unassigned" data-sin-drop>
         ${sa.map((g) => {
@@ -363,6 +365,7 @@ export class SalonView extends AppElement {
     const main = this.$('#main');
     if (main) main.innerHTML = this._mainTpl;
     this._observePlano();
+    if (this._q) this._buscar(this._q);
   }
 
   /** Observa el plano para recordar el alto que el usuario ajusta a mano (CSS resize). */
@@ -723,26 +726,38 @@ export class SalonView extends AppElement {
     setTimeout(() => { try { w.print(); } catch { /* noop */ } }, 300);
   }
 
-  /** @param {Event} e Buscador de invitado (resalta su mesa y su asiento). */
+  /** @param {Event} e Buscador de invitado (filtra la lista y el plano). */
   _onMainInput(e) {
     const buscar = e.target.closest('#sv-buscar');
-    if (buscar) this._buscar(buscar.value);
+    if (buscar) { this._q = buscar.value; this._buscar(this._q); }
   }
 
-  /** @param {string} q Resalta al invitado que coincide: su mesa y asiento, o su fila si no está sentado. */
+  /**
+   * Filtra por nombre: en "Sin asignar" muestra solo las filas que coinciden; en el plano
+   * atenúa las mesas que no contienen a nadie que coincida y resalta los asientos que sí.
+   * @param {string} q
+   */
   _buscar(q) {
     const needle = q.trim().toLowerCase();
-    this.$$('.is-found').forEach((el) => el.classList.remove('is-found'));
-    if (!needle) return;
-    const g = this._confs.find((x) => String(x.nombre).toLowerCase().includes(needle));
-    if (!g) return;
-    if (g.mesa) {
-      this.$$(`[data-mesa-drop="${g.mesa}"]`).forEach((el) => el.classList.add('is-found'));
-      this.$$(`.sal-av[data-guest="${g.id}"]`).forEach((el) => el.classList.add('is-found'));
-    } else {
-      const row = this.$(`.sal-guest[data-guest="${g.id}"]`);
-      if (row) { row.classList.add('is-found'); row.scrollIntoView({ block: 'nearest' }); }
-    }
+    const active = !!needle;
+    const match = (g) => g && String(g.nombre).toLowerCase().includes(needle);
+    // Lista "Sin asignar": ocultar las que no coinciden.
+    this.$$('.sal-guest[data-guest]').forEach((row) => {
+      const g = this._invitados.find((x) => x.id === row.dataset.guest);
+      row.hidden = active && !match(g);
+    });
+    // Plano: mesas con algún comensal que coincide.
+    const mesasMatch = new Set();
+    if (active) this._confs.forEach((g) => { if (g.mesa && match(g)) mesasMatch.add(g.mesa); });
+    this.$$('.sal-mesa-wrap').forEach((wrap) => {
+      const id = wrap.querySelector('[data-mesa]')?.dataset.mesa;
+      wrap.classList.toggle('is-dimmed', active && mesasMatch.size > 0 && !mesasMatch.has(id));
+    });
+    // Resalta los asientos que coinciden.
+    this.$$('.sal-av').forEach((av) => {
+      const g = this._invitados.find((x) => x.id === av.dataset.guest);
+      av.classList.toggle('is-found', active && match(g) && !!g.mesa);
+    });
   }
 
   /** Repinta solo la fila de stats (tras mover/redimensionar sin repintar el plano). */

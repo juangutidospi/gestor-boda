@@ -44,6 +44,9 @@ export const styles = css`
 /* Capa de lienzo (zoom + desplazamiento) */
 .sal-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
 
+/* Filtro del buscador: atenúa las mesas que no coinciden */
+.sal-mesa-wrap.is-dimmed { opacity: .14; pointer-events: none; transition: opacity .15s ease; }
+
 /* Controles de zoom */
 .sal-zoom { position: absolute; right: 16px; top: 16px; z-index: 6; display: flex; align-items: center; gap: 2px; background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 999px; padding: 2px; box-shadow: var(--shadow-sm); }
 .sal-zoom button { border: 0; background: none; cursor: pointer; font-family: var(--font-body); font-size: 15px; color: var(--color-text); width: 26px; height: 26px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
@@ -191,6 +194,7 @@ export const styles = css`
 .sal-resumen-menus { font-size: 12px; }
 .sal-guest { display: flex; align-items: center; gap: 8px; border: 1px solid var(--color-divider); border-left: 4px solid var(--color-divider); border-radius: 10px; padding: 8px 10px; cursor: grab; }
 .sal-guest.is-dragging { opacity: .5; }
+.sal-guest[hidden] { display: none; }
 .sal-guest.is-found { border-color: var(--color-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent); }
 .sal-guest-txt { min-width: 0; }
 .sal-guest-name { font-size: 13px; font-weight: 500; }
