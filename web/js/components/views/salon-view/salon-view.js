@@ -4,9 +4,11 @@ import { styles } from './salon-view.css.js';
 import { t, getLang } from '../../../i18n/index.js';
 import {
   confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar, ladoTokens,
-  autoSentar, resumenMesa,
+  autoSentar, resumenMesa, saludPlano, resumenGlobal,
 } from './salon-calc.js';
-import { ensureSeeded, mesasRepo, invitadosRepo } from '../../../core/repos.js';
+import {
+  ensureSeeded, mesasRepo, invitadosRepo, reglasRepo,
+} from '../../../core/repos.js';
 import '../../ui/segmented-tabs/segmented-tabs.js';
 import '../../ui/toast/toast.js';
 
@@ -30,6 +32,10 @@ export class SalonView extends AppElement {
   _dragMesaId = null;
   /** Texto del buscador (filtra). */
   _q = '';
+  /** @type {object[]} Reglas de convivencia. */
+  _reglas = [];
+  /** Snapshot para deshacer la última acción, o null. */
+  _undo = null;
   /** Alto elegido a mano para el plano (p. ej. '720px'), o null. */
   _planoH = null;
   /** @type {ResizeObserver|null} */
@@ -44,6 +50,7 @@ export class SalonView extends AppElement {
     ensureSeeded();
     this._mesas = mesasRepo.list();
     this._invitados = invitadosRepo.list();
+    this._reglas = reglasRepo.list();
     this._paint();
   }
 
@@ -91,8 +98,10 @@ export class SalonView extends AppElement {
       <div class="sal-grid">
         <div id="stage" class="sal-stage">${this._vista === 'plano' ? this._planoTpl : this._listadoTpl}</div>
         <aside id="aside" class="sal-aside">
+          <div id="salud">${this._saludTpl}</div>
           <div id="mesa-panel">${this._mesaPanelTpl}</div>
           <div id="sin-asignar" class="sal-sin">${this._sinAsignarTpl}</div>
+          <div id="reglas">${this._reglasTpl}</div>
         </aside>
       </div>`;
   }
@@ -291,6 +300,68 @@ export class SalonView extends AppElement {
       </article>`;
   }
 
+  // ---------- Avisos / salud del plano ----------
+
+  /** @returns {string} Panel de avisos (vacío si no hay ninguno). */
+  get _saludTpl() {
+    const avisos = saludPlano(this._mesas, this._invitados, this._reglas);
+    if (!avisos.length) return '';
+    const txt = (a) => {
+      if (a.tipo === 'sobrecupo') return t('salon.salud.sobrecupo', { mesa: a.texto });
+      if (a.tipo === 'porSentar') return t('salon.salud.porSentar', { n: a.n });
+      if (a.tipo === 'vacia') return t('salon.salud.vacia', { mesa: a.texto });
+      if (a.tipo === 'reglaJuntos') return t('salon.salud.reglaJuntos', { texto: a.texto });
+      if (a.tipo === 'reglaSeparados') return t('salon.salud.reglaSeparados', { texto: a.texto });
+      return '';
+    };
+    const warn = (a) => (a.tipo === 'sobrecupo' || a.tipo === 'reglaSeparados' || a.tipo === 'reglaJuntos');
+    return `
+      <div class="sal-salud">
+        <div class="sal-salud-head">${escapeHtml(t('salon.salud.title'))} <span class="sal-salud-n">${avisos.length}</span></div>
+        <ul class="sal-salud-list">
+          ${avisos.map((a) => `<li class="sal-aviso${warn(a) ? ' is-warn' : ''}"${a.mesa ? ` data-salud-mesa="${escapeHtml(a.mesa)}"` : ' data-salud-sentar'}>${escapeHtml(txt(a))}</li>`).join('')}
+        </ul>
+      </div>`;
+  }
+
+  // ---------- Reglas de convivencia ----------
+
+  /** @returns {string} Panel de reglas (lista + alta). */
+  get _reglasTpl() {
+    const confs = this._confs;
+    const nombre = (id) => confs.find((g) => g.id === id)?.nombre || '—';
+    const opciones = confs.map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.nombre)}</option>`).join('');
+    return `
+      <div class="sal-reglas">
+        <h3 class="sal-aside-title">${escapeHtml(t('salon.reglas.title'))}</h3>
+        <div class="sal-reglas-list">
+          ${this._reglas.length
+    ? this._reglas.map((r) => `
+            <div class="sal-regla${r.tipo === 'separados' ? ' is-sep' : ''}">
+              <span class="sal-regla-txt">${escapeHtml(nombre(r.a))} <b>${escapeHtml(t(r.tipo === 'juntos' ? 'salon.reglas.juntos' : 'salon.reglas.separados'))}</b> ${escapeHtml(nombre(r.b))}</span>
+              <button class="sal-regla-x" type="button" data-regla-del="${escapeHtml(r.id)}" aria-label="×">×</button>
+            </div>`).join('')
+    : `<span class="muted">${escapeHtml(t('salon.reglas.vacio'))}</span>`}
+        </div>
+        <div class="sal-regla-add">
+          <select class="input" data-regla-a><option value="">${escapeHtml(t('salon.reglas.sel'))}</option>${opciones}</select>
+          <select class="input" data-regla-tipo>
+            <option value="juntos">${escapeHtml(t('salon.reglas.juntos'))}</option>
+            <option value="separados">${escapeHtml(t('salon.reglas.separados'))}</option>
+          </select>
+          <select class="input" data-regla-b><option value="">${escapeHtml(t('salon.reglas.sel'))}</option>${opciones}</select>
+          <button class="btn btn-secondary sal-regla-add-btn" type="button" data-regla-add>${escapeHtml(t('salon.reglas.add'))}</button>
+        </div>
+      </div>`;
+  }
+
+  /** Selecciona una mesa (desde un aviso): abre su panel y la marca. */
+  _selectMesa(id) {
+    this._mesaSel = id;
+    this._refreshMesaPanel();
+    this._markSelected(id);
+  }
+
   // ---------- Sin asignar ----------
 
   /** @returns {string} Aside con los confirmados sin mesa. */
@@ -394,6 +465,12 @@ export class SalonView extends AppElement {
       return;
     }
     if (e.target.closest('[data-deselect]')) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); return; }
+    const saludMesa = e.target.closest('[data-salud-mesa]');
+    if (saludMesa) { this._selectMesa(saludMesa.dataset.saludMesa); return; }
+    if (e.target.closest('[data-salud-sentar]')) { this.$('#sv-buscar')?.focus(); return; }
+    const reglaDel = e.target.closest('[data-regla-del]');
+    if (reglaDel) { reglasRepo.remove(reglaDel.dataset.reglaDel); this._reglas = reglasRepo.list(); this._apply(); return; }
+    if (e.target.closest('[data-regla-add]')) { this._addRegla(); return; }
     const unseat = e.target.closest('[data-unseat]');
     if (unseat) { this._setMesaGuest(unseat.dataset.unseat, null); return; }
     const formaSet = e.target.closest('[data-forma-set]');
@@ -621,23 +698,25 @@ export class SalonView extends AppElement {
   /** @param {string} id Quita a todos los comensales de la mesa. */
   _vaciarMesa(id) {
     const m = this._mesas.find((x) => x.id === id);
+    this._snapshot();
     this._invitados = this._invitados.map((g) => {
       if (g.mesa !== id) return g;
       return invitadosRepo.upsert({ ...g, mesa: null });
     });
     this._apply();
-    if (m) this._toast('salon.toast.vaciada', { nombre: m.nombre });
+    if (m) this._toastUndo('salon.toast.vaciada', { nombre: m.nombre });
   }
 
   /** @param {string} id Elimina la mesa y libera a sus comensales. */
   _removeMesa(id) {
     const m = this._mesas.find((x) => x.id === id);
+    this._snapshot();
     mesasRepo.remove(id);
     this._mesas = this._mesas.filter((x) => x.id !== id);
     this._invitados = this._invitados.map((g) => (g.mesa === id ? invitadosRepo.upsert({ ...g, mesa: null }) : g));
     if (this._mesaSel === id) this._mesaSel = null;
     this._apply();
-    if (m) this._toast('salon.toast.eliminada', { nombre: m.nombre });
+    if (m) this._toastUndo('salon.toast.eliminada', { nombre: m.nombre });
   }
 
   /** Añade una mesa redonda nueva en una posición libre. */
@@ -655,18 +734,20 @@ export class SalonView extends AppElement {
 
   /** Reorganiza las mesas actualizando su posición en sitio (transición CSS) y persiste. */
   _autoOrganizar() {
+    this._snapshot();
     autoOrganizar(this._mesas).forEach((m) => {
       this._setMesa(m.id, { x: m.x, y: m.y }, true);
       const wrap = this.$(`[data-mesa="${m.id}"]`)?.closest('.sal-mesa-wrap');
       if (wrap) { wrap.style.left = `${m.x}%`; wrap.style.top = `${m.y}%`; }
     });
-    this._toast('salon.toast.auto');
+    this._toastUndo('salon.toast.auto');
   }
 
   /** Sienta a todos los confirmados sin mesa (auto-sentado inteligente) y persiste. */
   _autoSentar() {
-    const asign = autoSentar(this._mesas, this._invitados);
+    const asign = autoSentar(this._mesas, this._invitados, this._reglas);
     if (!asign.length) return;
+    this._snapshot();
     asign.forEach(({ id, mesa }) => {
       const g = this._invitados.find((x) => x.id === id);
       if (!g) return;
@@ -674,7 +755,7 @@ export class SalonView extends AppElement {
       this._invitados[idx] = invitadosRepo.upsert({ ...g, mesa });
     });
     this._apply();
-    this._toast('salon.toast.sentados', { n: asign.length });
+    this._toastUndo('salon.toast.sentados', { n: asign.length });
   }
 
   /** Abre una hoja imprimible (PDF) con el reparto de invitados por mesa. */
@@ -708,7 +789,15 @@ export class SalonView extends AppElement {
       li { padding: 2px 0; font-size: 13px; }
       .empty { color: #9a8871; font-style: italic; font-size: 13px; margin: 4px 0; }
       .menus { margin: 8px 0 0; font-size: 12px; color: #b07d46; }`;
-    const doc = `<!doctype html><html lang="${getLang()}"><head><meta charset="utf-8"><title>${escapeHtml(t('salon.export.title'))}</title><style>${styles}</style></head><body><header><h1>${escapeHtml(t('salon.export.title'))}</h1><p>${escapeHtml(t('salon.export.sub'))}</p></header><div class="grid">${bloques}</div></body></html>`;
+    const global = resumenGlobal(this._invitados);
+    const cateringHtml = global.length
+      ? `<section class="catering"><h3>${escapeHtml(t('salon.export.catering'))}</h3><ul>${global.map((x) => `<li><span>${escapeHtml(x.menu)}</span><b>${x.n}</b></li>`).join('')}</ul></section>`
+      : '';
+    const doc = `<!doctype html><html lang="${getLang()}"><head><meta charset="utf-8"><title>${escapeHtml(t('salon.export.title'))}</title><style>${styles}
+      .catering { margin: 0 0 20px; border: 1px solid #e6dccb; border-radius: 12px; padding: 12px 16px; break-inside: avoid; }
+      .catering h3 { font-family: Georgia, serif; font-size: 16px; margin: 0 0 8px; }
+      .catering ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+      .catering li { display: flex; gap: 8px; font-size: 13px; } .catering b { color: #b07d46; }</style></head><body><header><h1>${escapeHtml(t('salon.export.title'))}</h1><p>${escapeHtml(t('salon.export.sub'))}</p></header>${cateringHtml}<div class="grid">${bloques}</div></body></html>`;
     const w = window.open('', '_blank');
     if (!w) { this._toast('salon.export'); return; }
     w.document.write(doc);
@@ -760,9 +849,50 @@ export class SalonView extends AppElement {
   /**
    * @param {string} key @param {Record<string,string|number>} [vars]
    */
-  _toast(key, vars) {
+  _toast(key, vars, opts) {
     const el = this.$('#toast');
-    if (el && typeof el.show === 'function') el.show(t(key, vars));
+    if (el && typeof el.show === 'function') el.show(t(key, vars), opts);
+  }
+
+  /** Guarda un snapshot (asignaciones + mesas) para poder deshacer la última acción. */
+  _snapshot() {
+    this._undo = {
+      inv: this._invitados.map((g) => ({ id: g.id, mesa: g.mesa ?? null })),
+      mesas: this._mesas.map((m) => ({ ...m })),
+    };
+  }
+
+  /** Restaura el último snapshot (deshacer). */
+  _restore() {
+    const s = this._undo;
+    if (!s) return;
+    s.inv.forEach((r) => {
+      const g = this._invitados.find((x) => x.id === r.id);
+      if (g) invitadosRepo.upsert({ ...g, mesa: r.mesa });
+    });
+    const ids = new Set(s.mesas.map((m) => m.id));
+    this._mesas.filter((m) => !ids.has(m.id)).forEach((m) => mesasRepo.remove(m.id));
+    s.mesas.forEach((m) => mesasRepo.upsert(m));
+    this._mesas = mesasRepo.list();
+    this._invitados = invitadosRepo.list();
+    this._undo = null;
+    this._apply();
+  }
+
+  /** Toast con acción de deshacer. @param {string} key @param {object} [vars] */
+  _toastUndo(key, vars) {
+    this._toast(key, vars, { actionLabel: t('salon.toast.deshacer'), onAction: () => this._restore() });
+  }
+
+  /** Añade una regla de convivencia desde los selectores del panel. */
+  _addRegla() {
+    const a = this.$('[data-regla-a]')?.value;
+    const b = this.$('[data-regla-b]')?.value;
+    const tipo = this.$('[data-regla-tipo]')?.value || 'juntos';
+    if (!a || !b || a === b) return;
+    reglasRepo.upsert({ tipo, a, b });
+    this._reglas = reglasRepo.list();
+    this._apply();
   }
 }
 

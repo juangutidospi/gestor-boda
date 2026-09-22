@@ -178,8 +178,28 @@ export const styles = css`
 .sal-card-cap .input { padding: 6px 10px; font-size: 13px; }
 
 /* ---------- Aside "Sin asignar" ---------- */
-.sal-aside { position: sticky; top: 80px; display: flex; flex-direction: column; gap: var(--space-3); max-height: calc(100vh - 96px); }
-#mesa-panel:empty { display: none; }
+.sal-aside { position: sticky; top: 80px; display: flex; flex-direction: column; gap: var(--space-3); max-height: calc(100vh - 96px); overflow: auto; }
+#mesa-panel:empty, #salud:empty { display: none; }
+
+/* Avisos / salud del plano */
+.sal-salud { background: var(--color-accent-100); border: 1px solid var(--color-accent-200); border-radius: 14px; padding: var(--space-3) var(--space-4); }
+.sal-salud-head { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: var(--color-accent-700); }
+.sal-salud-n { background: var(--color-accent); color: var(--color-surface); border-radius: 999px; font-size: 11px; padding: 0 7px; font-variant-numeric: tabular-nums; }
+.sal-salud-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.sal-aviso { font-size: 12.5px; color: var(--color-text); cursor: pointer; padding: 2px 0; }
+.sal-aviso:hover { color: var(--color-accent-700); text-decoration: underline; }
+.sal-aviso.is-warn::before { content: '⚠ '; }
+
+/* Reglas de convivencia */
+.sal-reglas { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 14px; padding: var(--space-4); }
+.sal-reglas-list { display: flex; flex-direction: column; gap: 6px; margin: var(--space-3) 0; }
+.sal-regla { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 5px 8px; border-radius: 8px; background: var(--rsvp-si-bg); border: 1px solid var(--rsvp-si-line); }
+.sal-regla.is-sep { background: var(--color-accent-100); border-color: var(--color-accent-200); }
+.sal-regla-txt { flex: 1; min-width: 0; }
+.sal-regla-x { border: 0; background: none; cursor: pointer; color: inherit; font-size: 14px; line-height: 1; padding: 0 2px; }
+.sal-regla-add { display: flex; flex-direction: column; gap: 6px; }
+.sal-regla-add .input { width: 100%; padding: 5px 8px; font-size: 12px; }
+.sal-regla-add-btn { align-self: flex-start; padding: 5px 12px; font-size: 12px; }
 .sal-sin { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 14px; padding: var(--space-4); display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
 .sal-aside-head { display: flex; align-items: center; gap: var(--space-2); }
 .sal-aside-title { margin: 0; font-size: 20px; flex: 1; }
