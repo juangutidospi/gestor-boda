@@ -43,6 +43,8 @@ export const fincasRepo = collection('fincas', 'f');
 export const invitadosRepo = collection('invitados', 'g');
 export const proveedoresRepo = collection('proveedores', 'p');
 export const mesasRepo = collection('mesas', 'm');
+/** Reglas de convivencia del salón: `{ id, tipo:'juntos'|'separados', a, b }`. */
+export const reglasRepo = collection('reglas', 'r');
 
 /** Presupuesto: un único registro bajo la clave 'main'. */
 export const presupuestoRepo = {

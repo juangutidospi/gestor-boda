@@ -105,32 +105,96 @@ export function sillasGeom(mesa, n) {
  * @param {object[]} invitados
  * @returns {Array<{id:string, mesa:string}>}
  */
-export function autoSentar(mesas, invitados) {
+export function autoSentar(mesas, invitados, reglas = []) {
   const confs = confirmados(invitados);
   const sumP = (arr) => arr.reduce((a, g) => a + plazas(g), 0);
-  const free = {};
-  mesas.forEach((m) => {
-    const seated = confs.filter((g) => g.mesa === m.id).reduce((a, g) => a + plazas(g), 0);
-    free[m.id] = Math.max(0, (Number(m.capacidad) || 0) - seated);
+  const byId = new Map(confs.map((g) => [g.id, g]));
+  // Union-find: junta por grupo/círculo y por las reglas "sentar juntos".
+  const parent = {};
+  confs.forEach((g) => { parent[g.id] = g.id; });
+  const find = (x) => { let r = x; while (parent[r] !== r) r = parent[r]; parent[x] = r; return r; };
+  const union = (a, b) => { if (byId.has(a) && byId.has(b)) parent[find(a)] = find(b); };
+  const primeroGrupo = {};
+  confs.forEach((g) => { const k = g.grupo || `__${g.id}`; if (primeroGrupo[k]) union(g.id, primeroGrupo[k]); else primeroGrupo[k] = g.id; });
+  reglas.filter((r) => r.tipo === 'juntos').forEach((r) => union(r.a, r.b));
+  // "No sentar juntos": mapa de enemigos por invitado.
+  const enemigos = {};
+  reglas.filter((r) => r.tipo === 'separados').forEach((r) => {
+    (enemigos[r.a] = enemigos[r.a] || new Set()).add(r.b);
+    (enemigos[r.b] = enemigos[r.b] || new Set()).add(r.a);
   });
-  // Agrupa a los sin-mesa por grupo/círculo y ordena por tamaño (los grandes primero).
+  const free = {};
+  const ocupantes = {};
+  mesas.forEach((m) => {
+    const seated = confs.filter((g) => g.mesa === m.id);
+    free[m.id] = Math.max(0, (Number(m.capacidad) || 0) - sumP(seated));
+    ocupantes[m.id] = new Set(seated.map((g) => g.id));
+  });
+  // Grupos de sin-mesa (unidos por grupo + juntos), ordenados por tamaño.
   const grupos = {};
-  confs.filter((g) => !g.mesa).forEach((g) => { (grupos[g.grupo || '—'] = grupos[g.grupo || '—'] || []).push(g); });
+  confs.filter((g) => !g.mesa).forEach((g) => { const k = find(g.id); (grupos[k] = grupos[k] || []).push(g); });
   const ordenados = Object.values(grupos).sort((a, b) => sumP(b) - sumP(a));
   const asign = [];
-  const place = (g, mesaId) => { asign.push({ id: g.id, mesa: mesaId }); free[mesaId] -= plazas(g); };
+  const chocaSeparados = (grupo, mesaId) => grupo.some((g) => [...(enemigos[g.id] || [])].some((e) => ocupantes[mesaId].has(e)));
+  const place = (g, mesaId) => { asign.push({ id: g.id, mesa: mesaId }); free[mesaId] -= plazas(g); ocupantes[mesaId].add(g.id); };
   ordenados.forEach((grupo) => {
     const need = sumP(grupo);
-    // Mesa donde cabe el grupo entero con el ajuste más justo (menos hueco sobrante).
-    const juntos = mesas.map((m) => m.id).filter((id) => free[id] >= need).sort((a, b) => free[a] - free[b])[0];
+    const cabe = (id) => free[id] >= need && !chocaSeparados(grupo, id);
+    const juntos = mesas.map((m) => m.id).filter(cabe).sort((a, b) => free[a] - free[b])[0];
     if (juntos) { grupo.forEach((g) => place(g, juntos)); return; }
-    // Si no cabe entero, coloca cada invitación en la mesa con más hueco que la admita.
     grupo.forEach((g) => {
-      const id = mesas.map((m) => m.id).filter((mid) => free[mid] >= plazas(g)).sort((a, b) => free[b] - free[a])[0];
+      const id = mesas.map((m) => m.id).filter((mid) => free[mid] >= plazas(g) && !chocaSeparados([g], mid)).sort((a, b) => free[b] - free[a])[0];
       if (id) place(g, id);
     });
   });
   return asign;
+}
+
+/**
+ * Avisos de salud del plano: sobrecupo, invitados sin sentar, mesas vacías y reglas
+ * de convivencia incumplidas.
+ * @param {object[]} mesas
+ * @param {object[]} invitados
+ * @param {object[]} [reglas]
+ * @returns {Array<{tipo:string, mesa?:string, texto:string, n?:number}>}
+ */
+export function saludPlano(mesas, invitados, reglas = []) {
+  const confs = confirmados(invitados);
+  const avisos = [];
+  mesas.forEach((m) => {
+    const oc = ocupacionMesa(m, confs);
+    if (oc.sobra) avisos.push({ tipo: 'sobrecupo', mesa: m.id, n: oc.exceso, texto: m.nombre });
+  });
+  const porSentar = sinAsignar(confs).length;
+  if (porSentar) avisos.push({ tipo: 'porSentar', n: porSentar, texto: '' });
+  mesas.forEach((m) => {
+    if (ocupacionMesa(m, confs).asignados.length === 0) avisos.push({ tipo: 'vacia', mesa: m.id, texto: m.nombre });
+  });
+  const mesaDe = (id) => confs.find((g) => g.id === id)?.mesa || null;
+  reglas.forEach((r) => {
+    const ma = mesaDe(r.a);
+    const mb = mesaDe(r.b);
+    const na = confs.find((g) => g.id === r.a)?.nombre || '';
+    const nb = confs.find((g) => g.id === r.b)?.nombre || '';
+    if (!ma || !mb) return;
+    if (r.tipo === 'juntos' && ma !== mb) avisos.push({ tipo: 'reglaJuntos', mesa: ma, texto: `${na} · ${nb}` });
+    if (r.tipo === 'separados' && ma === mb) avisos.push({ tipo: 'reglaSeparados', mesa: ma, texto: `${na} · ${nb}` });
+  });
+  return avisos;
+}
+
+/**
+ * Resumen global de menús especiales (no estándar) de todos los confirmados, para la finca.
+ * @param {object[]} invitados
+ * @returns {Array<{menu:string, n:number}>}
+ */
+export function resumenGlobal(invitados) {
+  const cuenta = {};
+  confirmados(invitados).forEach((g) => {
+    const m = (g.menu || '').trim();
+    if (m && m.toLowerCase() !== 'estándar' && m.toLowerCase() !== 'estandar') cuenta[m] = (cuenta[m] || 0) + plazas(g);
+  });
+  return Object.entries(cuenta).map(([menu, n]) => ({ menu, n })).sort((a, b) => b.n - a.n);
 }
 
 /**

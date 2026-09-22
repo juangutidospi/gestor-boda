@@ -1,6 +1,6 @@
 import { register } from './runner.js';
 import {
-  plazas, confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar, autoSentar, resumenMesa,
+  plazas, confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar, autoSentar, resumenMesa, saludPlano, resumenGlobal,
 } from '../js/components/views/salon-view/salon-calc.js';
 
 register('salon/calc', () => {
@@ -72,6 +72,35 @@ register('salon/calc', () => {
   ]);
   out.push({ name: 'resumenMesa cuenta lado (novia=2 plazas, novio=2)', ok: res.novia === 2 && res.novio === 2, detail: `${res.novia}/${res.novio}` });
   out.push({ name: 'resumenMesa cuenta menús especiales (2, sin estándar)', ok: res.especiales === 2 && res.menus.length === 2, detail: JSON.stringify(res.menus) });
+
+  // Reglas: "no sentar juntos" separa a dos enemigos si hay hueco.
+  const mesasR = [{ id: 'A', capacidad: 4 }, { id: 'B', capacidad: 4 }];
+  const invR = [
+    g({ id: 'x', grupo: 'G1', mesa: null }), g({ id: 'y', grupo: 'G2', mesa: null }),
+  ];
+  const asR = autoSentar(mesasR, invR, [{ tipo: 'separados', a: 'x', b: 'y' }]);
+  const mesaDeR = (id) => asR.find((z) => z.id === id)?.mesa;
+  out.push({ name: 'autoSentar respeta "no sentar juntos"', ok: mesaDeR('x') !== mesaDeR('y'), detail: `${mesaDeR('x')},${mesaDeR('y')}` });
+  const asJ = autoSentar(mesasR, [g({ id: 'p', grupo: 'GA', mesa: null }), g({ id: 'q', grupo: 'GB', mesa: null })], [{ tipo: 'juntos', a: 'p', b: 'q' }]);
+  const mesaDeJ = (id) => asJ.find((z) => z.id === id)?.mesa;
+  out.push({ name: 'autoSentar respeta "sentar juntos"', ok: mesaDeJ('p') === mesaDeJ('q'), detail: `${mesaDeJ('p')},${mesaDeJ('q')}` });
+
+  // Salud del plano: sobrecupo, sin sentar, reglas incumplidas.
+  const mesasS = [{ id: 'M', capacidad: 2, nombre: 'M' }];
+  const invS = [
+    g({ id: 's1', mesa: 'M', plus: 0 }), g({ id: 's2', mesa: 'M', plus: 1 }), // 3 en cap 2 → sobrecupo
+    g({ id: 's3', mesa: null }), // sin sentar
+  ];
+  const salud = saludPlano(mesasS, invS, [{ tipo: 'separados', a: 's1', b: 's2' }]);
+  out.push({ name: 'saludPlano detecta sobrecupo', ok: salud.some((a) => a.tipo === 'sobrecupo'), detail: '' });
+  out.push({ name: 'saludPlano detecta por sentar', ok: salud.some((a) => a.tipo === 'porSentar' && a.n === 1), detail: '' });
+  out.push({ name: 'saludPlano detecta regla "separados" incumplida', ok: salud.some((a) => a.tipo === 'reglaSeparados'), detail: '' });
+
+  // Resumen global de menús.
+  const rg = resumenGlobal([
+    g({ menu: 'Vegano', plus: 1 }), g({ menu: 'Vegano', plus: 0 }), g({ menu: 'Estándar', plus: 0 }),
+  ]);
+  out.push({ name: 'resumenGlobal suma menús especiales (Vegano ×3)', ok: rg.length === 1 && rg[0].menu === 'Vegano' && rg[0].n === 3, detail: JSON.stringify(rg) });
 
   return out;
 });
