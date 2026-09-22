@@ -112,7 +112,8 @@ export const styles = css`
 .sal-av { position: absolute; width: 26px; height: 26px; z-index: 4; pointer-events: auto; cursor: grab; }
 .sal-av:active { cursor: grabbing; }
 .sal-av.is-dragging { opacity: .4; }
-.sal-av.is-found { outline: 2px solid var(--color-accent); outline-offset: 1px; border-radius: 50%; }
+.sal-av { transition: scale .15s ease; }
+.sal-av.is-found { outline: 2px solid var(--color-accent); outline-offset: 1px; border-radius: 50%; scale: 1.45; z-index: 6; }
 .sal-av.sal-lado-novia { --sal-lado: var(--lado-novia); }
 .sal-av.sal-lado-novio { --sal-lado: var(--lado-novio); }
 .sal-av-body { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); width: 22px; height: 15px; border-radius: 11px 11px 8px 8px; background: var(--sal-lado); }

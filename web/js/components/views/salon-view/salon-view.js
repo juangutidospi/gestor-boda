@@ -352,7 +352,6 @@ export class SalonView extends AppElement {
     this.on(this.$('#main'), 'dragleave', (e) => this._onGuestDragLeave(e));
     this.on(this.$('#main'), 'drop', (e) => this._onGuestDrop(e));
     this.on(this.$('#main'), 'dragend', () => this._onGuestDragEnd());
-    this.on(this.$('#main'), 'wheel', (e) => this._onWheel(e), { passive: false });
     this._observePlano();
   }
 
@@ -497,14 +496,6 @@ export class SalonView extends AppElement {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-  }
-
-  /** @param {WheelEvent} e Zoom hacia el cursor con la rueda. */
-  _onWheel(e) {
-    if (!e.target.closest('#plano')) return;
-    e.preventDefault();
-    const rect = this.$('#plano').getBoundingClientRect();
-    this._setZoom(this._zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX - rect.left, e.clientY - rect.top);
   }
 
   /** @param {number} z @param {number} [cx] @param {number} [cy] Ajusta el zoom manteniendo fijo el punto (cx,cy). */
