@@ -200,14 +200,14 @@ export const styles = css`
 .sal-regla-add { display: flex; flex-direction: column; gap: 6px; }
 .sal-regla-add .input { width: 100%; padding: 5px 8px; font-size: 12px; }
 .sal-regla-add-btn { align-self: flex-start; padding: 5px 12px; font-size: 12px; }
-.sal-sin { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 14px; padding: var(--space-4); display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.sal-sin { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 14px; padding: var(--space-4); display: flex; flex-direction: column; flex: 0 0 auto; }
 .sal-aside-head { display: flex; align-items: center; gap: var(--space-2); }
 .sal-aside-title { margin: 0; font-size: 20px; flex: 1; }
 .sal-autosentar { font-size: 12px; padding: 6px 12px; white-space: nowrap; }
 .sal-aside-sub { font-size: 12px; margin-top: 2px; }
 .sal-search { margin-top: var(--space-3); }
 .sal-search .input { width: 100%; }
-.sal-unassigned { display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-3); overflow: auto; flex: 1; min-height: 60px; }
+.sal-unassigned { display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-3); overflow: auto; max-height: 42vh; }
 
 /* Resumen de mesa (lado + menús) en el panel */
 .sal-resumen { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-divider); display: flex; flex-direction: column; gap: 5px; }
