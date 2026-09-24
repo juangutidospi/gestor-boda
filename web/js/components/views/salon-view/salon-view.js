@@ -7,7 +7,7 @@ import {
   autoSentar, resumenMesa, saludPlano, resumenGlobal,
 } from './salon-calc.js';
 import {
-  ensureSeeded, mesasRepo, invitadosRepo, reglasRepo,
+  ensureSeeded, mesasRepo, invitadosRepo, reglasRepo, salonRepo,
 } from '../../../core/repos.js';
 import '../../ui/segmented-tabs/segmented-tabs.js';
 import '../../ui/toast/toast.js';
@@ -36,6 +36,8 @@ export class SalonView extends AppElement {
   _reglas = [];
   /** Snapshot para deshacer la última acción, o null. */
   _undo = null;
+  /** Imagen de fondo del plano (data URL), o ''. */
+  _bg = '';
   /** Alto elegido a mano para el plano (p. ej. '720px'), o null. */
   _planoH = null;
   /** @type {ResizeObserver|null} */
@@ -45,12 +47,52 @@ export class SalonView extends AppElement {
   _panX = 0;
   _panY = 0;
 
+  /** Registra los atajos de teclado UNA sola vez. */
+  connectedCallback() {
+    super.connectedCallback();
+    this.on(window, 'keydown', this._onKey);
+  }
+
+  /**
+   * Atajos (solo si la vista es visible): "/" buscar, +/− zoom, Esc deselecciona; con una
+   * mesa seleccionada, flechas la mueven (Shift = más) y Supr la borra.
+   * @param {KeyboardEvent} e
+   */
+  _onKey = (e) => {
+    if (this.offsetParent === null) return;
+    const active = this.shadowRoot.activeElement;
+    const typing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
+    if (typing) { if (e.key === 'Escape') active.blur(); return; }
+    if (e.key === '/') { e.preventDefault(); this.$('#sv-buscar')?.focus(); return; }
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); this._zoomBy('in'); return; }
+    if (e.key === '-') { e.preventDefault(); this._zoomBy('out'); return; }
+    if (e.key === 'Escape') { if (this._mesaSel) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); } return; }
+    if (!this._mesaSel) return;
+    const m = this._mesas.find((x) => x.id === this._mesaSel);
+    if (!m) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this._removeMesa(m.id); return; }
+    const step = e.shiftKey ? 3 : 1;
+    const nudge = (dx, dy) => {
+      e.preventDefault();
+      const x = Math.min(94, Math.max(6, Math.round(((m.x ?? 50) + dx) * 2) / 2));
+      const y = Math.min(92, Math.max(8, Math.round(((m.y ?? 50) + dy) * 2) / 2));
+      this._setMesa(m.id, { x, y }, true);
+      const wrap = this.$(`[data-mesa="${m.id}"]`)?.closest('.sal-mesa-wrap');
+      if (wrap) { wrap.style.left = `${x}%`; wrap.style.top = `${y}%`; }
+    };
+    if (e.key === 'ArrowLeft') nudge(-step, 0);
+    else if (e.key === 'ArrowRight') nudge(step, 0);
+    else if (e.key === 'ArrowUp') nudge(0, -step);
+    else if (e.key === 'ArrowDown') nudge(0, step);
+  };
+
   /** Público: lo llama el router al abrir la vista. */
   refresh() {
     ensureSeeded();
     this._mesas = mesasRepo.list();
     this._invitados = invitadosRepo.list();
     this._reglas = reglasRepo.list();
+    this._bg = salonRepo.getBg();
     this._paint();
   }
 
@@ -64,6 +106,9 @@ export class SalonView extends AppElement {
           <segmented-tabs id="sv-vista"></segmented-tabs>
           <div id="stats" class="sal-statstrip">${this._statsTpl}</div>
           ${this._legendTpl}
+          <input type="file" id="sv-bg-file" accept="image/*" hidden>
+          <button class="btn btn-ghost" id="sv-fondo" type="button">${escapeHtml(t('salon.fondo'))}</button>
+          <button class="btn btn-ghost" id="sv-tarjetas" type="button">${escapeHtml(t('salon.placecards'))}</button>
           <button class="btn btn-secondary sal-toolbar-export" id="sv-export" type="button">${escapeHtml(t('salon.export'))}</button>
           <button class="btn btn-primary sal-toolbar-add" id="sv-add" type="button">+&nbsp;&nbsp;${escapeHtml(t('salon.add'))}</button>
         </div>
@@ -113,20 +158,22 @@ export class SalonView extends AppElement {
     const confs = this._confs;
     return `
       <div class="sal-plano-wrap">
-        <div class="sal-plano" id="plano"${this._planoH ? ` style="height:${this._planoH}"` : ''}>
-          <div class="sal-plano-grid" aria-hidden="true"></div>
-          <div class="sal-plano-vignette" aria-hidden="true"></div>
-          <div class="sal-plano-inner1" aria-hidden="true"></div>
-          <button class="btn btn-secondary sal-auto" id="sv-auto" type="button">${escapeHtml(t('salon.plano.auto'))}</button>
+        <div class="sal-plano${this._bg ? ' has-bg' : ''}" id="plano"${this._planoH ? ` style="height:${this._planoH}"` : ''}>
+          ${this._bg ? '' : '<div class="sal-plano-grid" aria-hidden="true"></div><div class="sal-plano-vignette" aria-hidden="true"></div><div class="sal-plano-inner1" aria-hidden="true"></div>'}
+          <div class="sal-plano-tools">
+            <button class="btn btn-secondary sal-auto" id="sv-auto" type="button">${escapeHtml(t('salon.plano.auto'))}</button>
+            ${this._bg ? `<button class="btn btn-secondary sal-auto" id="sv-bg-quitar" type="button">${escapeHtml(t('salon.fondo.quitar'))}</button>` : ''}
+          </div>
           <div class="sal-zoom">
             <button type="button" data-zoom="out" aria-label="−">−</button>
             <button type="button" data-zoom="reset" class="sal-zoom-pct">${Math.round(this._zoom * 100)}%</button>
             <button type="button" data-zoom="in" aria-label="+">+</button>
           </div>
           <div class="sal-canvas" id="canvas" style="transform:translate(${this._panX}px,${this._panY}px) scale(${this._zoom})">
+            ${this._bg ? `<div class="sal-bg" style="background-image:url('${this._bg}')"></div>` : `
             <div class="sal-presidencia">${escapeHtml(t('salon.plano.presidencia'))}</div>
             <div class="sal-pista">${escapeHtml(t('salon.plano.pista'))}</div>
-            <div class="sal-barra">${escapeHtml(t('salon.plano.barra'))}</div>
+            <div class="sal-barra">${escapeHtml(t('salon.plano.barra'))}</div>`}
             <div class="sal-guide sal-guide-v" id="guide-x" hidden></div>
             <div class="sal-guide sal-guide-h" id="guide-y" hidden></div>
             ${this._mesas.map((m) => this._mesaTpl(m, confs)).join('')}
@@ -413,6 +460,9 @@ export class SalonView extends AppElement {
     }
     this.on(this.$('#sv-add'), 'click', () => this._addMesa());
     this.on(this.$('#sv-export'), 'click', () => this._exportar());
+    this.on(this.$('#sv-tarjetas'), 'click', () => this._exportarPlaceCards());
+    this.on(this.$('#sv-fondo'), 'click', () => this.$('#sv-bg-file')?.click());
+    this.on(this.$('#sv-bg-file'), 'change', (e) => this._onBgFile(e));
     // Escenario: clicks, arrastre de mesa (pointer) y soltar invitado (DnD).
     this.on(this.$('#main'), 'click', (e) => this._onMainClick(e));
     this.on(this.$('#main'), 'pointerdown', (e) => this._onPointerDown(e));
@@ -453,17 +503,10 @@ export class SalonView extends AppElement {
   /** @param {MouseEvent} e */
   _onMainClick(e) {
     if (e.target.closest('#sv-auto')) { this._autoOrganizar(); return; }
+    if (e.target.closest('#sv-bg-quitar')) { this._clearBg(); return; }
     if (e.target.closest('#sv-autosentar')) { this._autoSentar(); return; }
     const zoom = e.target.closest('[data-zoom]');
-    if (zoom) {
-      const rect = this.$('#plano')?.getBoundingClientRect();
-      const cx = rect ? rect.width / 2 : null;
-      const cy = rect ? rect.height / 2 : null;
-      if (zoom.dataset.zoom === 'in') this._setZoom(this._zoom * 1.2, cx, cy);
-      else if (zoom.dataset.zoom === 'out') this._setZoom(this._zoom / 1.2, cx, cy);
-      else { this._zoom = 1; this._panX = 0; this._panY = 0; this._applyCanvasTransform(); }
-      return;
-    }
+    if (zoom) { this._zoomBy(zoom.dataset.zoom); return; }
     if (e.target.closest('[data-deselect]')) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); return; }
     const saludMesa = e.target.closest('[data-salud-mesa]');
     if (saludMesa) { this._selectMesa(saludMesa.dataset.saludMesa); return; }
@@ -592,6 +635,16 @@ export class SalonView extends AppElement {
     if (canvas) canvas.style.transform = `translate(${this._panX}px,${this._panY}px) scale(${this._zoom})`;
     const pct = this.$('.sal-zoom-pct');
     if (pct) pct.textContent = `${Math.round(this._zoom * 100)}%`;
+  }
+
+  /** @param {'in'|'out'|'reset'} dir Zoom desde los botones o el teclado (hacia el centro). */
+  _zoomBy(dir) {
+    const rect = this.$('#plano')?.getBoundingClientRect();
+    const cx = rect ? rect.width / 2 : null;
+    const cy = rect ? rect.height / 2 : null;
+    if (dir === 'in') this._setZoom(this._zoom * 1.2, cx, cy);
+    else if (dir === 'out') this._setZoom(this._zoom / 1.2, cx, cy);
+    else { this._zoom = 1; this._panX = 0; this._panY = 0; this._applyCanvasTransform(); }
   }
 
   /** Marca visualmente la mesa seleccionada sin repintar el plano entero. */
@@ -804,6 +857,69 @@ export class SalonView extends AppElement {
     w.document.close();
     w.focus();
     setTimeout(() => { try { w.print(); } catch { /* noop */ } }, 300);
+  }
+
+  /** Abre una hoja imprimible con una tarjeta de sitio por comensal (nombre + mesa). */
+  _exportarPlaceCards() {
+    const nombreMesa = (id) => this._mesas.find((m) => m.id === id)?.nombre || '';
+    const cards = [];
+    this._confs.filter((g) => g.mesa).forEach((g) => {
+      const mesa = nombreMesa(g.mesa);
+      cards.push({ nombre: g.nombre, mesa });
+      const comps = Array.isArray(g.acompanantes) ? g.acompanantes : [];
+      const n = Number(g.plus) || 0;
+      for (let k = 0; k < n; k++) cards.push({ nombre: comps[k] || `${String(g.nombre).split(' ')[0]} +1`, mesa });
+    });
+    if (!cards.length) return;
+    const styles = `
+      @page { size: A4; margin: 12mm; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 10mm; }
+      .sheet { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+      .card { border: 1px solid #d9cdb8; border-radius: 8px; height: 52mm; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; text-align: center; padding: 6mm; break-inside: avoid;
+        background: linear-gradient(180deg, #fffdf9, #f6f1e8); }
+      .card .nombre { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; color: #2b241c; }
+      .card .mesa { margin-top: 6px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #b07d46; }`;
+    const html = cards.map((c) => `<div class="card"><div class="nombre">${escapeHtml(c.nombre)}</div><div class="mesa">${escapeHtml(c.mesa)}</div></div>`).join('');
+    const doc = `<!doctype html><html lang="${getLang()}"><head><meta charset="utf-8"><title>${escapeHtml(t('salon.placecards.title'))}</title><style>${styles}</style></head><body><div class="sheet">${html}</div></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(doc);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch { /* noop */ } }, 300);
+  }
+
+  /** @param {Event} e Lee la imagen elegida, la redimensiona y la fija como fondo del plano. */
+  _onBgFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const maxW = 1400;
+      const scale = Math.min(1, maxW / img.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      try {
+        const url = c.toDataURL('image/jpeg', 0.82);
+        salonRepo.setBg(url);
+        this._bg = url;
+        this._apply();
+      } catch { /* cuota superada u otro error: se ignora */ }
+    };
+    img.src = URL.createObjectURL(file);
+  }
+
+  /** Quita la imagen de fondo del plano. */
+  _clearBg() {
+    salonRepo.setBg('');
+    this._bg = '';
+    this._apply();
   }
 
   /** @param {Event} e Buscador de invitado (filtra la lista y el plano). */

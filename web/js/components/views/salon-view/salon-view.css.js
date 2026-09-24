@@ -58,7 +58,9 @@ export const styles = css`
 .sal-guide-v { top: 0; bottom: 0; width: 1px; }
 .sal-guide-h { left: 0; right: 0; height: 1px; }
 .sal-guide[hidden] { display: none; }
-.sal-auto { position: absolute; left: 22px; top: 22px; z-index: 4; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 12px; }
+.sal-plano-tools { position: absolute; left: 22px; top: 22px; z-index: 6; display: flex; gap: 6px; flex-wrap: wrap; max-width: 60%; }
+.sal-auto { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 12px; }
+.sal-bg { position: absolute; inset: 0; background-size: contain; background-position: center; background-repeat: no-repeat; }
 .sal-presidencia {
   position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 2;
   padding: 6px 24px; background: var(--color-accent-100); color: var(--color-accent-700);

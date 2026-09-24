@@ -45,6 +45,11 @@ export const proveedoresRepo = collection('proveedores', 'p');
 export const mesasRepo = collection('mesas', 'm');
 /** Reglas de convivencia del salón: `{ id, tipo:'juntos'|'separados', a, b }`. */
 export const reglasRepo = collection('reglas', 'r');
+/** Ajustes del salón: imagen de fondo del plano (data URL). */
+export const salonRepo = {
+  getBg() { return get('salon', 'bg', { url: '' }).url || ''; },
+  setBg(url) { set('salon', 'bg', { url }); },
+};
 
 /** Presupuesto: un único registro bajo la clave 'main'. */
 export const presupuestoRepo = {
