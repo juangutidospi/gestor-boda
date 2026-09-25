@@ -218,17 +218,17 @@ table.fc-detail-table { width: 100%; border-collapse: collapse; background: var(
   position: fixed; inset: 0; z-index: 90; background: #2b231b;
   display: flex; flex-direction: column; animation: fc-fade .12s ease-out;
 }
-.fc-lightbox-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); color: #f7f2ea; }
+.fc-lightbox-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); color: #f8f6ee; }
 .fc-lightbox-pie { font-family: var(--font-heading); font-size: 18px; }
 .fc-lightbox-contador { font-size: 12px; opacity: .7; }
-.fc-lightbox-close { margin-left: auto; color: #f7f2ea; border: 1px solid rgba(247, 242, 234, .4); background: transparent; }
+.fc-lightbox-close { margin-left: auto; color: #f8f6ee; border: 1px solid rgba(248, 246, 238, .4); background: transparent; }
 .fc-lightbox-stage {
   flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
   gap: var(--space-3); padding: 0 var(--space-4) var(--space-6);
   img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; border-radius: 8px; }
 }
 .fc-lightbox-nav {
-  color: #f7f2ea; border: 1px solid rgba(247, 242, 234, .4); background: transparent;
+  color: #f8f6ee; border: 1px solid rgba(248, 246, 238, .4); background: transparent;
   flex: 0 0 auto; min-height: 40px; padding: 0 16px; border-radius: 999px; cursor: pointer;
   font-family: var(--font-body); font-size: 13px;
 }

@@ -23,8 +23,8 @@ register('css/tokens', async () => {
   const darkMissing = DARK_ROLES.filter((tk) => !darkBlock.includes(tk));
   out.push({ name: 'el tema oscuro redefine los roles base', ok: darkStart >= 0 && !darkMissing.length, detail: darkMissing.join(', ') });
 
-  // El tema claro usa la paleta exacta del prototipo
-  out.push({ name: 'tema claro con el fondo del prototipo', ok: rootBlock.includes('#f7f2ea'), detail: '' });
+  // El tema claro usa el fondo crema de la paleta Earthy Minimal
+  out.push({ name: 'tema claro con el fondo Earthy Minimal', ok: rootBlock.includes('#f8f6ee'), detail: '' });
 
   return out;
 });
