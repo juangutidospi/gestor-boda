@@ -9,6 +9,7 @@ export default {
   'nav.timing': 'Timing',
   'chrome.lang': 'ES / EN',
   'chrome.theme': 'Tema',
+  'chrome.skip': 'Saltar al contenido',
   'common.loading': 'Cargando…',
   'common.empty': 'Nada por aquí todavía',
   'common.cancel': 'Cancelar',
