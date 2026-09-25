@@ -23,7 +23,7 @@ function paintNav() {
   const nav = document.getElementById('nav');
   const active = document.querySelector('.view.active')?.id ?? 'view-finca';
   nav.innerHTML = NAV.map((n) => `
-    <button data-nav="${n.id}" aria-current="${n.id === active}">${escapeHtml(t(n.key))}</button>`).join('');
+    <button type="button" data-nav="${n.id}"${n.id === active ? ' aria-current="page"' : ''}>${escapeHtml(t(n.key))}</button>`).join('');
   nav.querySelectorAll('[data-nav]').forEach((b) => {
     b.addEventListener('click', () => setActiveView(b.dataset.nav));
   });
@@ -42,7 +42,10 @@ function paintChrome() {
 function setActiveView(id) {
   const known = NAV.some((n) => n.id === id) ? id : 'view-finca';
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === known));
-  document.querySelectorAll('[data-nav]').forEach((b) => b.setAttribute('aria-current', b.dataset.nav === known));
+  document.querySelectorAll('[data-nav]').forEach((b) => {
+    if (b.dataset.nav === known) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
   const el = document.getElementById(known);
   if (typeof el.refresh === 'function') el.refresh();
   else fillSoon(el); // vistas no-Finca: placeholder "próximamente"
@@ -78,8 +81,8 @@ document.getElementById('lang').addEventListener('click', () => {
   configRepo.set({ lang: next });
 });
 
-// Al cambiar idioma, repintar el chrome y el nav
-window.addEventListener('i18n:changed', () => { paintChrome(); paintNav(); });
+// Al cambiar idioma, repintar el chrome y el nav, y sincronizar <html lang>
+window.addEventListener('i18n:changed', () => { document.documentElement.lang = getLang(); paintChrome(); paintNav(); });
 
 // Arranque: sembrar datos de ejemplo antes de nada que pueda leerlos
 ensureSeeded();
@@ -88,6 +91,7 @@ ensureSeeded();
 const cfg = configRepo.get();
 if (cfg.theme) applyTheme(cfg.theme);
 if (cfg.lang && cfg.lang !== getLang()) setLang(cfg.lang);
+document.documentElement.lang = getLang();
 
 paintChrome();
 paintNav();
