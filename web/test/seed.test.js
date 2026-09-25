@@ -7,6 +7,7 @@ register('core/seed', () => {
   out.push({ name: '15 invitados', ok: SEED.invitados.length === 15, detail: String(SEED.invitados.length) });
   out.push({ name: '14 proveedores', ok: SEED.proveedores.length === 14, detail: String(SEED.proveedores.length) });
   out.push({ name: '4 mesas', ok: SEED.mesas.length === 4, detail: String(SEED.mesas.length) });
+  out.push({ name: '13 momentos de timing', ok: SEED.timing.length === 13, detail: String(SEED.timing.length) });
   out.push({ name: 'límite 45000', ok: SEED.presupuesto.limite === 45000, detail: '' });
   out.push({ name: 'guestCount 140', ok: SEED.config.guestCount === 140, detail: '' });
   const jarama = SEED.fincas.find((f) => f.nombre === 'La Quinta de Jarama');
