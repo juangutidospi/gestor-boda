@@ -47,6 +47,8 @@ export const mesasRepo = collection('mesas', 'm');
 export const reglasRepo = collection('reglas', 'r');
 /** Zonas del plano del salón: `{ id, tipo, x, y, w, h, rot }` (x,y en %; w,h en px). */
 export const zonasRepo = collection('zonas', 'z');
+/** Momentos del guion del día (Timing): `{ id, orden, bloque, titulo, inicio, dur, lugar, prov, nota }`. */
+export const timingRepo = collection('timing', 't');
 /** Ajustes del salón: imagen de fondo del plano (data URL). */
 export const salonRepo = {
   getBg() { return get('salon', 'bg', { url: '' }).url || ''; },
@@ -87,6 +89,11 @@ export function ensureSeeded() {
     const byId = {};
     SEED.mesas.forEach((m) => { byId[m.id] = m; });
     setGroup('mesas', byId);
+  }
+  if (!timingRepo.list().length && Array.isArray(SEED.timing)) {
+    const byId = {};
+    SEED.timing.forEach((m) => { byId[m.id] = m; });
+    setGroup('timing', byId);
   }
   if (!presupuestoRepo.get().limite) set('presupuesto', 'main', SEED.presupuesto);
   if (!configRepo.get().guestCount) set('config', 'main', SEED.config);

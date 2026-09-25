@@ -105,4 +105,21 @@ export const SEED = {
     { id: 'p13', nombre: 'Estudio Bruma', categoria: 'Peluquería y maquillaje', estado: 'presupuesto', precio: 540, senal: 0, contacto: 'Sandra', telefono: '677 556 231', notas: 'Prueba incluida, dos personas a domicilio la mañana de la boda.' },
     { id: 'p14', nombre: 'Autocares Jarama', categoria: 'Autobuses', estado: 'pendiente', precio: 0, senal: 0, contacto: '', telefono: '', notas: 'Dos autobuses Madrid–finca ida y vuelta, incluida la vuelta de madrugada.' },
   ],
+
+  // Guion del día (Timing): momentos ordenados con hora, duración, bloque, lugar y responsable.
+  timing: [
+    { id: 't01', orden: 1, bloque: 'preparativos', titulo: 'Peinado y maquillaje', inicio: '10:00', dur: 150, lugar: 'Suite nupcial', prov: 'p13', nota: 'Dos personas a domicilio; prueba ya hecha.' },
+    { id: 't02', orden: 2, bloque: 'preparativos', titulo: 'Recepción de invitados', inicio: '12:30', dur: 30, lugar: 'Jardín de acceso', prov: '', nota: 'Agua aromatizada y sombra a la llegada.' },
+    { id: 't03', orden: 3, bloque: 'ceremonia', titulo: 'Ceremonia civil', inicio: '13:00', dur: 40, lugar: 'La chopera', prov: 'p07', nota: 'Cuarteto de cuerda en la entrada y las firmas.' },
+    { id: 't04', orden: 4, bloque: 'ceremonia', titulo: 'Felicitaciones y foto de grupo', inicio: '13:40', dur: 35, lugar: 'Jardín', prov: 'p02', nota: 'Foto general con dron antes del cóctel.' },
+    { id: 't05', orden: 5, bloque: 'celebracion', titulo: 'Cóctel de bienvenida', inicio: '14:15', dur: 90, lugar: 'Terraza', prov: 'p06', nota: 'Saxo en directo la primera media hora.' },
+    { id: 't06', orden: 6, bloque: 'celebracion', titulo: 'Banquete', inicio: '15:45', dur: 135, lugar: 'Salón principal', prov: 'p06', nota: 'Tres tiempos + brindis de los padrinos.' },
+    { id: 't07', orden: 7, bloque: 'fiesta', titulo: 'Primer baile', inicio: '18:00', dur: 15, lugar: 'Pista', prov: 'p08', nota: 'Entrada de los novios con saxo.' },
+    { id: 't08', orden: 8, bloque: 'fiesta', titulo: 'Apertura de barra libre', inicio: '18:15', dur: 45, lugar: 'Pista y barra', prov: 'p08', nota: 'Iluminación robotizada desde aquí.' },
+    { id: 't09', orden: 9, bloque: 'fiesta', titulo: 'Fotomatón', inicio: '19:00', dur: 180, lugar: 'Zona chill', prov: 'p11', nota: 'Cabina vintage con libro de firmas.' },
+    { id: 't10', orden: 10, bloque: 'fiesta', titulo: 'Recena', inicio: '22:00', dur: 45, lugar: 'Barra', prov: 'p06', nota: 'Mini hamburguesas y jamón.' },
+    { id: 't11', orden: 11, bloque: 'fiesta', titulo: 'Show sorpresa', inicio: '22:45', dur: 20, lugar: 'Pista', prov: 'p10', nota: 'Flamenco fusión antes de volver a la pista.' },
+    { id: 't12', orden: 12, bloque: 'fiesta', titulo: 'Fiesta y DJ', inicio: '23:20', dur: 180, lugar: 'Pista', prov: 'p08', nota: 'Sesión sin límite de hora.' },
+    { id: 't13', orden: 13, bloque: 'fiesta', titulo: 'Autobuses de vuelta', inicio: '02:30', dur: 30, lugar: 'Entrada', prov: 'p14', nota: 'Dos turnos Madrid; recogida en la puerta.' },
+  ],
 };
