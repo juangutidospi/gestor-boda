@@ -53,7 +53,14 @@ input, select, textarea {
 }
 textarea { padding: 9px 12px; min-height: 84px; line-height: 1.5; resize: vertical; }
 input::placeholder, textarea::placeholder { color: var(--color-neutral-600); }
-select { appearance: none; padding-right: 26px; }
+select {
+  appearance: none; padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236f6a55' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 11px center;
+}
+:host-context([data-theme="dark"]) select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23c5ccb7' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
 input[type="checkbox"], input[type="radio"] { min-height: 0; accent-color: var(--color-accent); }
 
 .seg { display: inline-flex; border: 1px solid var(--color-divider); border-radius: 999px; overflow: hidden; }
@@ -64,4 +71,18 @@ input[type="checkbox"], input[type="radio"] { min-height: 0; accent-color: var(-
 .bar { display: block; height: 5px; border-radius: 3px; overflow: hidden;
   background: color-mix(in srgb, var(--color-text) 10%, transparent);
   span { display: block; height: 100%; background: var(--color-accent); } }
+
+/* Foco visible en cualquier control interactivo a medida (navegación por teclado) */
+button:focus-visible, a:focus-visible, summary:focus-visible,
+[tabindex]:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid var(--color-accent); outline-offset: 2px;
+}
+
+/* Respeto por prefers-reduced-motion: sin animaciones/transiciones molestas */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; scroll-behavior: auto !important;
+  }
+}
 `;
