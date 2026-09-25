@@ -4,10 +4,10 @@ import { styles } from './salon-view.css.js';
 import { t, getLang } from '../../../i18n/index.js';
 import {
   confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar, ladoTokens,
-  autoSentar, resumenMesa, saludPlano, resumenGlobal,
+  autoSentar, resumenMesa, saludPlano, resumenGlobal, detectarSolapes, autoDistribuir,
 } from './salon-calc.js';
 import {
-  ensureSeeded, mesasRepo, invitadosRepo, reglasRepo, salonRepo,
+  ensureSeeded, mesasRepo, invitadosRepo, reglasRepo, salonRepo, zonasRepo,
 } from '../../../core/repos.js';
 import '../../ui/segmented-tabs/segmented-tabs.js';
 import '../../ui/toast/toast.js';
@@ -46,6 +46,30 @@ export class SalonView extends AppElement {
   _zoom = 1;
   _panX = 0;
   _panY = 0;
+  /** @type {object[]} Zonas del plano (sala, escenario, pista…). */
+  _zonas = [];
+  /** Id de la zona seleccionada en el editor de sala, o null. */
+  _zonaSel = null;
+  /** @type {Array<{a:object,b:object}>} Solapes detectados (geometría del plano). */
+  _solapes = [];
+
+  /**
+   * Catálogo de zonas colocables: tamaño por defecto (px) e icono. La sala es el contorno
+   * del recinto (solo borde) y solo puede haber una.
+   */
+  static ZONAS = [
+    { tipo: 'sala', icon: '▢', w: 640, h: 440 },
+    { tipo: 'escenario', icon: '🎤', w: 230, h: 70 },
+    { tipo: 'pista', icon: '💃', w: 190, h: 150 },
+    { tipo: 'barra', icon: '🍸', w: 180, h: 56 },
+    { tipo: 'dj', icon: '🎧', w: 96, h: 74 },
+    { tipo: 'photocall', icon: '📸', w: 130, h: 88 },
+    { tipo: 'entrada', icon: '🚪', w: 96, h: 52 },
+    { tipo: 'buffet', icon: '🍽️', w: 200, h: 60 },
+    { tipo: 'regalos', icon: '🎁', w: 96, h: 74 },
+    { tipo: 'tarta', icon: '🎂', w: 84, h: 84 },
+    { tipo: 'aseos', icon: '🚻', w: 96, h: 74 },
+  ];
 
   /** Registra los atajos de teclado UNA sola vez. */
   connectedCallback() {
@@ -66,7 +90,30 @@ export class SalonView extends AppElement {
     if (e.key === '/') { e.preventDefault(); this.$('#sv-buscar')?.focus(); return; }
     if (e.key === '+' || e.key === '=') { e.preventDefault(); this._zoomBy('in'); return; }
     if (e.key === '-') { e.preventDefault(); this._zoomBy('out'); return; }
-    if (e.key === 'Escape') { if (this._mesaSel) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); } return; }
+    if (e.key === 'Escape') {
+      if (this._mesaSel) { this._mesaSel = null; this._refreshMesaPanel(); this._markSelected(null); }
+      if (this._zonaSel) { this._zonaSel = null; this._markZonaSel(null); }
+      return;
+    }
+    if (this._zonaSel && !this._mesaSel) {
+      const z = this._zonas.find((x) => x.id === this._zonaSel);
+      if (z) {
+        if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this._removeZona(z.id); return; }
+        const stepZ = e.shiftKey ? 3 : 1;
+        const nudgeZ = (dx, dy) => {
+          e.preventDefault();
+          const x = Math.min(100, Math.max(0, Math.round(((z.x ?? 50) + dx) * 2) / 2));
+          const y = Math.min(100, Math.max(0, Math.round(((z.y ?? 50) + dy) * 2) / 2));
+          this._setZona(z.id, { x, y }, true);
+          const el = this.$(`[data-zona="${z.id}"]`);
+          if (el) { el.style.left = `${x}%`; el.style.top = `${y}%`; }
+        };
+        if (e.key === 'ArrowLeft') return nudgeZ(-stepZ, 0);
+        if (e.key === 'ArrowRight') return nudgeZ(stepZ, 0);
+        if (e.key === 'ArrowUp') return nudgeZ(0, -stepZ);
+        if (e.key === 'ArrowDown') return nudgeZ(0, stepZ);
+      }
+    }
     if (!this._mesaSel) return;
     const m = this._mesas.find((x) => x.id === this._mesaSel);
     if (!m) return;
@@ -92,6 +139,7 @@ export class SalonView extends AppElement {
     this._mesas = mesasRepo.list();
     this._invitados = invitadosRepo.list();
     this._reglas = reglasRepo.list();
+    this._zonas = zonasRepo.list();
     this._bg = salonRepo.getBg();
     this._paint();
   }
@@ -109,6 +157,7 @@ export class SalonView extends AppElement {
           <input type="file" id="sv-bg-file" accept="image/*" hidden>
           <button class="btn btn-ghost" id="sv-fondo" type="button">${escapeHtml(t('salon.fondo'))}</button>
           <button class="btn btn-ghost" id="sv-tarjetas" type="button">${escapeHtml(t('salon.placecards'))}</button>
+          <button class="btn btn-ghost" id="sv-plano" type="button">${escapeHtml(t('salon.exportPlano'))}</button>
           <button class="btn btn-secondary sal-toolbar-export" id="sv-export" type="button">${escapeHtml(t('salon.export'))}</button>
           <button class="btn btn-primary sal-toolbar-add" id="sv-add" type="button">+&nbsp;&nbsp;${escapeHtml(t('salon.add'))}</button>
         </div>
@@ -153,15 +202,20 @@ export class SalonView extends AppElement {
 
   // ---------- Plano ----------
 
-  /** @returns {string} Lienzo del plano con decoración y mesas. */
+  /** @returns {string} Lienzo del plano con decoración/zonas y mesas. */
   get _planoTpl() {
     const confs = this._confs;
+    const decor = !this._bg && this._zonas.length === 0;
+    const zonaOpts = SalonView.ZONAS.map((z) => `<option value="${z.tipo}">${z.icon}&nbsp;&nbsp;${escapeHtml(t(`salon.zona.${z.tipo}`))}</option>`).join('');
     return `
       <div class="sal-plano-wrap">
         <div class="sal-plano${this._bg ? ' has-bg' : ''}" id="plano"${this._planoH ? ` style="height:${this._planoH}"` : ''}>
-          ${this._bg ? '' : '<div class="sal-plano-grid" aria-hidden="true"></div><div class="sal-plano-vignette" aria-hidden="true"></div><div class="sal-plano-inner1" aria-hidden="true"></div>'}
+          ${decor ? '<div class="sal-plano-grid" aria-hidden="true"></div><div class="sal-plano-vignette" aria-hidden="true"></div><div class="sal-plano-inner1" aria-hidden="true"></div>' : '<div class="sal-plano-grid is-plain" aria-hidden="true"></div>'}
           <div class="sal-plano-tools">
-            <button class="btn btn-secondary sal-auto" id="sv-auto" type="button">${escapeHtml(t('salon.plano.auto'))}</button>
+            <button class="btn btn-secondary sal-auto" id="sv-auto" type="button">${escapeHtml(t('salon.plano.distribuir'))}</button>
+            <select class="input sal-zona-sel" id="sv-zona-add" aria-label="${escapeHtml(t('salon.zona.add'))}">
+              <option value="">${escapeHtml(t('salon.zona.add'))}</option>${zonaOpts}
+            </select>
             ${this._bg ? `<button class="btn btn-secondary sal-auto" id="sv-bg-quitar" type="button">${escapeHtml(t('salon.fondo.quitar'))}</button>` : ''}
           </div>
           <div class="sal-zoom">
@@ -170,15 +224,39 @@ export class SalonView extends AppElement {
             <button type="button" data-zoom="in" aria-label="+">+</button>
           </div>
           <div class="sal-canvas" id="canvas" style="transform:translate(${this._panX}px,${this._panY}px) scale(${this._zoom})">
-            ${this._bg ? `<div class="sal-bg" style="background-image:url('${this._bg}')"></div>` : `
+            ${this._bg ? `<div class="sal-bg" style="background-image:url('${this._bg}')"></div>` : ''}
+            ${decor ? `
             <div class="sal-presidencia">${escapeHtml(t('salon.plano.presidencia'))}</div>
             <div class="sal-pista">${escapeHtml(t('salon.plano.pista'))}</div>
-            <div class="sal-barra">${escapeHtml(t('salon.plano.barra'))}</div>`}
+            <div class="sal-barra">${escapeHtml(t('salon.plano.barra'))}</div>` : ''}
+            <div class="sal-zonas" id="zonas">${this._zonasTpl}</div>
             <div class="sal-guide sal-guide-v" id="guide-x" hidden></div>
             <div class="sal-guide sal-guide-h" id="guide-y" hidden></div>
             ${this._mesas.map((m) => this._mesaTpl(m, confs)).join('')}
           </div>
         </div>
+      </div>`;
+  }
+
+  /** @returns {string} Capa de zonas del plano (la sala primero, detrás de todo). */
+  get _zonasTpl() {
+    const orden = [...this._zonas].sort((a, b) => (a.tipo === 'sala' ? -1 : b.tipo === 'sala' ? 1 : 0));
+    return orden.map((z) => this._zonaTpl(z)).join('');
+  }
+
+  /** @param {object} z @returns {string} Una zona posicionada, con etiqueta y tiradores (si está seleccionada). */
+  _zonaTpl(z) {
+    const meta = SalonView.ZONAS.find((k) => k.tipo === z.tipo) || { icon: '' };
+    const sel = this._zonaSel === z.id;
+    const rot = Number(z.rot) || 0;
+    const esSala = z.tipo === 'sala';
+    return `
+      <div class="sal-zona zona-${escapeHtml(z.tipo)}${sel ? ' is-sel' : ''}" data-zona="${escapeHtml(z.id)}"
+           style="left:${z.x ?? 50}%;top:${z.y ?? 50}%;width:${z.w}px;height:${z.h}px;transform:translate(-50%,-50%) rotate(${rot}deg)">
+        <span class="sal-zona-lbl">${meta.icon} ${escapeHtml(t(`salon.zona.${z.tipo}`))}</span>
+        <button class="sal-zona-del" type="button" data-zona-del="${escapeHtml(z.id)}" aria-label="${escapeHtml(t('salon.zona.borrar'))}">×</button>
+        <span class="sal-zona-h sal-zona-resize" data-zona-resize="${escapeHtml(z.id)}" aria-hidden="true"></span>
+        ${esSala ? '' : `<span class="sal-zona-h sal-zona-rot" data-zona-rot="${escapeHtml(z.id)}" aria-hidden="true"></span>`}
       </div>`;
   }
 
@@ -352,7 +430,8 @@ export class SalonView extends AppElement {
   /** @returns {string} Panel de avisos (vacío si no hay ninguno). */
   get _saludTpl() {
     const avisos = saludPlano(this._mesas, this._invitados, this._reglas);
-    if (!avisos.length) return '';
+    const solapes = this._solapes || [];
+    if (!avisos.length && !solapes.length) return '';
     const txt = (a) => {
       if (a.tipo === 'sobrecupo') return t('salon.salud.sobrecupo', { mesa: a.texto });
       if (a.tipo === 'porSentar') return t('salon.salud.porSentar', { n: a.n });
@@ -362,11 +441,18 @@ export class SalonView extends AppElement {
       return '';
     };
     const warn = (a) => (a.tipo === 'sobrecupo' || a.tipo === 'reglaSeparados' || a.tipo === 'reglaJuntos');
+    // Aviso de solape: enfoca la mesa implicada (la primera de las dos que sea mesa).
+    const solapeLi = (s) => {
+      const mesa = s.a.kind === 'mesa' ? s.a : s.b;
+      return `<li class="sal-aviso is-warn" data-salud-mesa="${escapeHtml(mesa.id)}">${escapeHtml(t('salon.salud.solape', { a: s.a.nombre, b: s.b.nombre }))}</li>`;
+    };
+    const n = avisos.length + solapes.length;
     return `
       <div class="sal-salud">
-        <div class="sal-salud-head">${escapeHtml(t('salon.salud.title'))} <span class="sal-salud-n">${avisos.length}</span></div>
+        <div class="sal-salud-head">${escapeHtml(t('salon.salud.title'))} <span class="sal-salud-n">${n}</span></div>
         <ul class="sal-salud-list">
           ${avisos.map((a) => `<li class="sal-aviso${warn(a) ? ' is-warn' : ''}"${a.mesa ? ` data-salud-mesa="${escapeHtml(a.mesa)}"` : ' data-salud-sentar'}>${escapeHtml(txt(a))}</li>`).join('')}
+          ${solapes.map(solapeLi).join('')}
         </ul>
       </div>`;
   }
@@ -460,6 +546,7 @@ export class SalonView extends AppElement {
     }
     this.on(this.$('#sv-add'), 'click', () => this._addMesa());
     this.on(this.$('#sv-export'), 'click', () => this._exportar());
+    this.on(this.$('#sv-plano'), 'click', () => this._exportarPlano());
     this.on(this.$('#sv-tarjetas'), 'click', () => this._exportarPlaceCards());
     this.on(this.$('#sv-fondo'), 'click', () => this.$('#sv-bg-file')?.click());
     this.on(this.$('#sv-bg-file'), 'change', (e) => this._onBgFile(e));
@@ -474,6 +561,7 @@ export class SalonView extends AppElement {
     this.on(this.$('#main'), 'drop', (e) => this._onGuestDrop(e));
     this.on(this.$('#main'), 'dragend', () => this._onGuestDragEnd());
     this._observePlano();
+    this._refreshSalud();
   }
 
   /** Repinta stats + escenario + aside; conserva el alto del plano redimensionado. */
@@ -485,6 +573,7 @@ export class SalonView extends AppElement {
     const main = this.$('#main');
     if (main) main.innerHTML = this._mainTpl;
     this._observePlano();
+    this._refreshSalud();
     if (this._q) this._buscar(this._q);
   }
 
@@ -502,8 +591,10 @@ export class SalonView extends AppElement {
 
   /** @param {MouseEvent} e */
   _onMainClick(e) {
-    if (e.target.closest('#sv-auto')) { this._autoOrganizar(); return; }
+    if (e.target.closest('#sv-auto')) { this._autoLayout(); return; }
     if (e.target.closest('#sv-bg-quitar')) { this._clearBg(); return; }
+    const zonaDel = e.target.closest('[data-zona-del]');
+    if (zonaDel) { this._removeZona(zonaDel.dataset.zonaDel); return; }
     if (e.target.closest('#sv-autosentar')) { this._autoSentar(); return; }
     const zoom = e.target.closest('[data-zoom]');
     if (zoom) { this._zoomBy(zoom.dataset.zoom); return; }
@@ -531,6 +622,8 @@ export class SalonView extends AppElement {
 
   /** @param {Event} e */
   _onMainChange(e) {
+    const zonaAdd = e.target.closest('#sv-zona-add');
+    if (zonaAdd) { if (zonaAdd.value) this._addZona(zonaAdd.value); zonaAdd.value = ''; return; }
     const seat = e.target.closest('[data-seat]');
     if (seat) { if (seat.value) this._setMesaGuest(seat.dataset.seat, seat.value, true); return; }
     const seatMesa = e.target.closest('[data-seat-mesa]');
@@ -543,10 +636,16 @@ export class SalonView extends AppElement {
 
   // ---------- Arrastre de mesa (Pointer Events) ----------
 
-  /** @param {PointerEvent} e Arrastra una mesa, o desplaza (pan) el fondo del lienzo. */
+  /** @param {PointerEvent} e Arrastra/edita una zona o mesa, o desplaza (pan) el lienzo. */
   _onPointerDown(e) {
+    const resize = e.target.closest('[data-zona-resize]');
+    if (resize) { this._startZonaResize(e, resize.dataset.zonaResize); return; }
+    const rot = e.target.closest('[data-zona-rot]');
+    if (rot) { this._startZonaRot(e, rot.dataset.zonaRot); return; }
     const mesa = e.target.closest('[data-mesa]');
     if (mesa) { this._startMesaDrag(e, mesa); return; }
+    const zona = e.target.closest('[data-zona]');
+    if (zona && !e.target.closest('button')) { this._startZonaDrag(e, zona); return; }
     if (e.target.closest('.sal-av, button, input, select, a')) return;
     if (e.target.closest('#canvas') || e.target.closest('#plano')) this._startPan(e);
   }
@@ -556,6 +655,8 @@ export class SalonView extends AppElement {
     const id = mesa.dataset.mesa;
     this._mesaSel = id;
     this._dragMesaId = id;
+    this._zonaSel = null;
+    this._markZonaSel(null);
     this._refreshMesaPanel();
     this._markSelected(id);
     const box = this.$('#plano');
@@ -616,6 +717,144 @@ export class SalonView extends AppElement {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+  }
+
+  // ---------- Editor de sala (zonas) ----------
+
+  /** Marca visualmente la zona seleccionada (muestra sus tiradores) sin repintar. */
+  _markZonaSel(id) {
+    this.$$('.sal-zona').forEach((el) => el.classList.toggle('is-sel', el.dataset.zona === id));
+  }
+
+  /** Selecciona una zona: deselecciona mesa y muestra sus tiradores. */
+  _selectZona(id) {
+    this._zonaSel = id;
+    this._mesaSel = null;
+    this._markSelected(null);
+    this._refreshMesaPanel();
+    this._markZonaSel(id);
+  }
+
+  /** @param {PointerEvent} e @param {HTMLElement} zona Arrastra una zona (corrige zoom). */
+  _startZonaDrag(e, zona) {
+    const id = zona.dataset.zona;
+    this._selectZona(id);
+    const box = this.$('#plano');
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    const snap = (v) => Math.round(v * 2) / 2;
+    let moved = false;
+    let pos = null;
+    const move = (ev) => {
+      moved = true;
+      const x = snap(Math.min(100, Math.max(0, ((ev.clientX - rect.left - this._panX) / (rect.width * this._zoom)) * 100)));
+      const y = snap(Math.min(100, Math.max(0, ((ev.clientY - rect.top - this._panY) / (rect.height * this._zoom)) * 100)));
+      zona.style.left = `${x}%`;
+      zona.style.top = `${y}%`;
+      pos = { x, y };
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (moved && pos) this._setZona(id, pos, true);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** @param {PointerEvent} e @param {string} id Redimensiona una zona anclando su esquina superior-izquierda. */
+  _startZonaResize(e, id) {
+    e.preventDefault();
+    const z = this._zonas.find((x) => x.id === id);
+    const zona = this.$(`[data-zona="${id}"]`);
+    const canvas = this.$('#canvas');
+    if (!z || !zona || !canvas) return;
+    this._selectZona(id);
+    const W = canvas.offsetWidth || 1;
+    const H = canvas.offsetHeight || 1;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const w0 = z.w;
+    const h0 = z.h;
+    const tlx = ((z.x ?? 50) / 100) * W - w0 / 2; // esquina sup-izq fija (px)
+    const tly = ((z.y ?? 50) / 100) * H - h0 / 2;
+    let out = null;
+    const move = (ev) => {
+      const w = Math.max(44, Math.round(w0 + (ev.clientX - startX) / this._zoom));
+      const h = Math.max(36, Math.round(h0 + (ev.clientY - startY) / this._zoom));
+      const x = ((tlx + w / 2) / W) * 100;
+      const y = ((tly + h / 2) / H) * 100;
+      zona.style.width = `${w}px`;
+      zona.style.height = `${h}px`;
+      zona.style.left = `${x}%`;
+      zona.style.top = `${y}%`;
+      out = { w, h, x, y };
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (out) this._setZona(id, out, true);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** @param {PointerEvent} e @param {string} id Rota una zona arrastrando el tirador superior (pasos de 15°). */
+  _startZonaRot(e, id) {
+    e.preventDefault();
+    const zona = this.$(`[data-zona="${id}"]`);
+    if (!zona) return;
+    this._selectZona(id);
+    const r = zona.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let deg = 0;
+    const move = (ev) => {
+      const a = (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI + 90;
+      deg = Math.round(a / 15) * 15;
+      zona.style.transform = `translate(-50%,-50%) rotate(${deg}deg)`;
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      this._setZona(id, { rot: ((deg % 360) + 360) % 360 }, true);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Añade una zona nueva del tipo dado (la sala es única) y la selecciona. */
+  _addZona(tipo) {
+    const meta = SalonView.ZONAS.find((z) => z.tipo === tipo);
+    if (!meta) return;
+    if (tipo === 'sala') {
+      const existe = this._zonas.find((z) => z.tipo === 'sala');
+      if (existe) { this._selectZona(existe.id); return; }
+    }
+    const created = zonasRepo.upsert({ tipo, x: 50, y: tipo === 'sala' ? 50 : 62, w: meta.w, h: meta.h, rot: 0 });
+    this._zonas.push(created);
+    this._zonaSel = created.id;
+    this._apply();
+    this._toast('salon.toast.zonaCreada', { nombre: t(`salon.zona.${tipo}`) });
+  }
+
+  /** @param {string} id @param {object} patch @param {boolean} [silent] Persiste una zona. */
+  _setZona(id, patch, silent) {
+    const z = this._zonas.find((x) => x.id === id);
+    if (!z) return;
+    const updated = zonasRepo.upsert({ ...z, ...patch });
+    const idx = this._zonas.findIndex((x) => x.id === id);
+    this._zonas[idx] = updated;
+    if (!silent) this._apply();
+    else this._refreshSalud();
+  }
+
+  /** @param {string} id Elimina una zona del plano. */
+  _removeZona(id) {
+    zonasRepo.remove(id);
+    this._zonas = this._zonas.filter((x) => x.id !== id);
+    if (this._zonaSel === id) this._zonaSel = null;
+    this._apply();
   }
 
   /** @param {number} z @param {number} [cx] @param {number} [cy] Ajusta el zoom manteniendo fijo el punto (cx,cy). */
@@ -724,7 +963,7 @@ export class SalonView extends AppElement {
     const idx = this._mesas.findIndex((x) => x.id === id);
     this._mesas[idx] = updated;
     if (!silent) this._apply();
-    else { this._refreshStats(); }
+    else { this._refreshStats(); this._refreshSalud(); }
   }
 
   /** Asigna (o quita) la mesa de un invitado y repinta. */
@@ -796,6 +1035,38 @@ export class SalonView extends AppElement {
     this._toastUndo('salon.toast.auto');
   }
 
+  /** Distribuye las mesas esquivando las zonas si las hay; si no, usa la rejilla clásica. */
+  _autoLayout() {
+    const zonas = this._zonas.filter((z) => z.tipo !== 'sala');
+    const canvas = this.$('#canvas');
+    if (!zonas.length || !canvas) { this._autoOrganizar(); return; }
+    const W = canvas.offsetWidth || 1;
+    const H = canvas.offsetHeight || 1;
+    const sala = this._zonas.find((z) => z.tipo === 'sala');
+    const pad = 40;
+    const area = sala
+      ? { cx: (sala.x / 100) * W, cy: (sala.y / 100) * H, w: Math.max(220, sala.w - pad * 2), h: Math.max(220, sala.h - pad * 2) }
+      : { cx: W / 2, cy: H / 2, w: W * 0.92, h: H * 0.92 };
+    const obst = zonas.map((z) => ({ cx: ((z.x ?? 50) / 100) * W, cy: ((z.y ?? 50) / 100) * H, w: z.w + 30, h: z.h + 30 }));
+    const sizes = this._mesas.map((m) => mesaSize(m));
+    const maxW = Math.max(120, ...sizes.map((s) => s.w));
+    const maxH = Math.max(110, ...sizes.map((s) => s.h));
+    const cell = { cw: maxW + 56, ch: maxH + 70 };
+    const centros = autoDistribuir(area, this._mesas.length, obst, cell);
+    if (!centros.length) return;
+    this._snapshot();
+    this._mesas.forEach((m, i) => {
+      const c = centros[i];
+      if (!c) return;
+      const x = Math.min(97, Math.max(3, Math.round((c.cx / W * 100) * 2) / 2));
+      const y = Math.min(97, Math.max(3, Math.round((c.cy / H * 100) * 2) / 2));
+      this._setMesa(m.id, { x, y }, true);
+      const wrap = this.$(`[data-mesa="${m.id}"]`)?.closest('.sal-mesa-wrap');
+      if (wrap) { wrap.style.left = `${x}%`; wrap.style.top = `${y}%`; }
+    });
+    this._toastUndo('salon.toast.distribuir');
+  }
+
   /** Sienta a todos los confirmados sin mesa (auto-sentado inteligente) y persiste. */
   _autoSentar() {
     const asign = autoSentar(this._mesas, this._invitados, this._reglas);
@@ -830,27 +1101,27 @@ export class SalonView extends AppElement {
     const styles = `
       @page { size: A4; margin: 16mm; }
       * { box-sizing: border-box; }
-      body { font-family: -apple-system, system-ui, sans-serif; color: #2b241c; background: #fff; margin: 0; padding: 24px; }
-      header { border-bottom: 3px solid #b07d46; padding-bottom: 10px; margin-bottom: 20px; }
+      body { font-family: -apple-system, system-ui, sans-serif; color: #2e3a2f; background: #fff; margin: 0; padding: 24px; }
+      header { border-bottom: 3px solid #c96f4f; padding-bottom: 10px; margin-bottom: 20px; }
       h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 30px; margin: 0; }
-      header p { margin: 4px 0 0; color: #7a6a55; }
+      header p { margin: 4px 0 0; color: #6f6a55; }
       .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-      .mesa { border: 1px solid #e6dccb; border-radius: 12px; padding: 12px 16px; break-inside: avoid; }
+      .mesa { border: 1px solid #e4ddcc; border-radius: 12px; padding: 12px 16px; break-inside: avoid; }
       .mesa h2 { font-family: Georgia, serif; font-size: 18px; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
-      .mesa h2 span { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #9a8871; font-family: -apple-system, sans-serif; }
+      .mesa h2 span { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #8a8065; font-family: -apple-system, sans-serif; }
       ol { margin: 0; padding-left: 20px; }
       li { padding: 2px 0; font-size: 13px; }
-      .empty { color: #9a8871; font-style: italic; font-size: 13px; margin: 4px 0; }
-      .menus { margin: 8px 0 0; font-size: 12px; color: #b07d46; }`;
+      .empty { color: #8a8065; font-style: italic; font-size: 13px; margin: 4px 0; }
+      .menus { margin: 8px 0 0; font-size: 12px; color: #c96f4f; }`;
     const global = resumenGlobal(this._invitados);
     const cateringHtml = global.length
       ? `<section class="catering"><h3>${escapeHtml(t('salon.export.catering'))}</h3><ul>${global.map((x) => `<li><span>${escapeHtml(x.menu)}</span><b>${x.n}</b></li>`).join('')}</ul></section>`
       : '';
     const doc = `<!doctype html><html lang="${getLang()}"><head><meta charset="utf-8"><title>${escapeHtml(t('salon.export.title'))}</title><style>${styles}
-      .catering { margin: 0 0 20px; border: 1px solid #e6dccb; border-radius: 12px; padding: 12px 16px; break-inside: avoid; }
+      .catering { margin: 0 0 20px; border: 1px solid #e4ddcc; border-radius: 12px; padding: 12px 16px; break-inside: avoid; }
       .catering h3 { font-family: Georgia, serif; font-size: 16px; margin: 0 0 8px; }
       .catering ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; }
-      .catering li { display: flex; gap: 8px; font-size: 13px; } .catering b { color: #b07d46; }</style></head><body><header><h1>${escapeHtml(t('salon.export.title'))}</h1><p>${escapeHtml(t('salon.export.sub'))}</p></header>${cateringHtml}<div class="grid">${bloques}</div></body></html>`;
+      .catering li { display: flex; gap: 8px; font-size: 13px; } .catering b { color: #c96f4f; }</style></head><body><header><h1>${escapeHtml(t('salon.export.title'))}</h1><p>${escapeHtml(t('salon.export.sub'))}</p></header>${cateringHtml}<div class="grid">${bloques}</div></body></html>`;
     const w = window.open('', '_blank');
     if (!w) { this._toast('salon.export'); return; }
     w.document.write(doc);
@@ -859,29 +1130,124 @@ export class SalonView extends AppElement {
     setTimeout(() => { try { w.print(); } catch { /* noop */ } }, 300);
   }
 
-  /** Abre una hoja imprimible con una tarjeta de sitio por comensal (nombre + mesa). */
+  /**
+   * Dibuja el plano actual (sala, zonas y mesas con nombres) como SVG a escala del lienzo.
+   * @param {number} W @param {number} H
+   * @returns {string} Markup SVG.
+   */
+  _planoSvg(W, H) {
+    const confs = this._confs;
+    const px = (v, tot) => (v / 100) * tot;
+    const parts = [`<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`];
+    const zonas = [...this._zonas].sort((a, b) => (a.tipo === 'sala' ? -1 : b.tipo === 'sala' ? 1 : 0));
+    zonas.forEach((z) => {
+      const cx = px(z.x ?? 50, W);
+      const cy = px(z.y ?? 50, H);
+      const x = cx - z.w / 2;
+      const y = cy - z.h / 2;
+      const rot = Number(z.rot) || 0;
+      const g = rot ? ` transform="rotate(${rot} ${cx} ${cy})"` : '';
+      if (z.tipo === 'sala') {
+        parts.push(`<rect x="${x}" y="${y}" width="${z.w}" height="${z.h}" rx="10" fill="none" stroke="#b9ad93" stroke-width="2"${g}/>`);
+        parts.push(`<text x="${x + 8}" y="${y + 16}" font-size="11" fill="#8a8065" font-family="sans-serif" letter-spacing="1">${escapeHtml(t('salon.zona.sala').toUpperCase())}</text>`);
+        return;
+      }
+      const pal = z.tipo === 'pista' ? ['#f6e7db', '#c96f4f', '#a4512f']
+        : z.tipo === 'escenario' ? ['#eef2e7', '#6b7f5b', '#55663f']
+          : ['#f1ece1', '#d9c9b2', '#6f6a55'];
+      parts.push(`<rect x="${x}" y="${y}" width="${z.w}" height="${z.h}" rx="8" fill="${pal[0]}" stroke="${pal[1]}" stroke-width="1.2"${g}/>`);
+      parts.push(`<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="${pal[2]}" font-family="sans-serif" letter-spacing="1"${g}>${escapeHtml(t(`salon.zona.${z.tipo}`).toUpperCase())}</text>`);
+    });
+    this._mesas.forEach((m) => {
+      const { rect, w, h } = mesaSize(m);
+      const cx = px(m.x ?? 50, W);
+      const cy = px(m.y ?? 50, H);
+      const { asignados, ocupadas } = ocupacionMesa(m, confs);
+      const people = this._peopleDeMesa(asignados).map((p) => String(p.nombre).split(' ')[0]);
+      if (rect) parts.push(`<rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="14" fill="#fffdf7" stroke="#c9b89c" stroke-width="1.4"/>`);
+      else parts.push(`<circle cx="${cx}" cy="${cy}" r="${w / 2}" fill="#fffdf7" stroke="#c9b89c" stroke-width="1.4"/>`);
+      const nameY = cy - h / 2 + 20;
+      parts.push(`<text x="${cx}" y="${nameY}" text-anchor="middle" font-size="13" font-family="Georgia,serif" fill="#2e3a2f">${escapeHtml(m.nombre)}</text>`);
+      parts.push(`<text x="${cx}" y="${nameY + 13}" text-anchor="middle" font-size="9" fill="#c96f4f" font-family="sans-serif" letter-spacing="1">${ocupadas}/${Number(m.capacidad) || 0}</text>`);
+      const maxLines = Math.max(0, Math.floor((h - 52) / 11));
+      const shown = people.slice(0, maxLines);
+      let ly = nameY + 27;
+      shown.forEach((nm) => { parts.push(`<text x="${cx}" y="${ly}" text-anchor="middle" font-size="9" fill="#4a4a3f" font-family="sans-serif">${escapeHtml(nm)}</text>`); ly += 11; });
+      if (people.length > shown.length) parts.push(`<text x="${cx}" y="${ly}" text-anchor="middle" font-size="8.5" fill="#8a8065" font-family="sans-serif">+${people.length - shown.length}</text>`);
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:100%;height:auto">${parts.join('')}</svg>`;
+  }
+
+  /** Abre una hoja imprimible (PDF) con el plano del salón dibujado a escala. */
+  _exportarPlano() {
+    const canvas = this.$('#canvas');
+    const W = Math.round(canvas?.offsetWidth || 960);
+    const H = Math.round(canvas?.offsetHeight || 620);
+    const svg = this._planoSvg(W, H);
+    const styles = `
+      @page { size: A4 landscape; margin: 12mm; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, system-ui, sans-serif; color: #2e3a2f; margin: 0; padding: 20px; }
+      header { border-bottom: 3px solid #c96f4f; padding-bottom: 8px; margin-bottom: 14px; }
+      h1 { font-family: Georgia, serif; font-size: 26px; margin: 0; }
+      header p { margin: 3px 0 0; color: #6f6a55; font-size: 13px; }
+      .plano { width: 100%; border: 1px solid #e4ddcc; border-radius: 10px; padding: 10px; }`;
+    const doc = `<!doctype html><html lang="${getLang()}"><head><meta charset="utf-8"><title>${escapeHtml(t('salon.exportPlano.title'))}</title><style>${styles}</style></head><body><header><h1>${escapeHtml(t('salon.exportPlano.title'))}</h1><p>${escapeHtml(t('salon.exportPlano.sub'))}</p></header><div class="plano">${svg}</div></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { this._toast('salon.export'); return; }
+    w.document.write(doc);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch { /* noop */ } }, 300);
+  }
+
+  /** Abre una hoja imprimible con una tarjeta de sitio por comensal (lado, nombre, mesa y menú). */
   _exportarPlaceCards() {
     const nombreMesa = (id) => this._mesas.find((m) => m.id === id)?.nombre || '';
+    const esEstandar = (m) => !m || /^est[aá]ndar$/i.test(String(m).trim());
     const cards = [];
     this._confs.filter((g) => g.mesa).forEach((g) => {
       const mesa = nombreMesa(g.mesa);
-      cards.push({ nombre: g.nombre, mesa });
+      const lado = g.lado === 'novia' ? 'novia' : 'novio';
+      cards.push({ nombre: g.nombre, mesa, lado, menu: g.menu || '' });
       const comps = Array.isArray(g.acompanantes) ? g.acompanantes : [];
       const n = Number(g.plus) || 0;
-      for (let k = 0; k < n; k++) cards.push({ nombre: comps[k] || `${String(g.nombre).split(' ')[0]} +1`, mesa });
+      // Los acompañantes heredan el lado del titular; su menú no se registra por separado.
+      for (let k = 0; k < n; k++) cards.push({ nombre: comps[k] || `${String(g.nombre).split(' ')[0]} +1`, mesa, lado, menu: '' });
     });
     if (!cards.length) return;
+    const ladoLbl = { novia: t('salon.leyenda.novia'), novio: t('salon.leyenda.novio') };
     const styles = `
       @page { size: A4; margin: 12mm; }
       * { box-sizing: border-box; }
       body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 10mm; }
       .sheet { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
-      .card { border: 1px solid #d9cdb8; border-radius: 8px; height: 52mm; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; text-align: center; padding: 6mm; break-inside: avoid;
-        background: linear-gradient(180deg, #fffdf9, #f6f1e8); }
-      .card .nombre { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; color: #2b241c; }
-      .card .mesa { margin-top: 6px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #b07d46; }`;
-    const html = cards.map((c) => `<div class="card"><div class="nombre">${escapeHtml(c.nombre)}</div><div class="mesa">${escapeHtml(c.mesa)}</div></div>`).join('');
+      .card { position: relative; overflow: hidden; border: 1px solid #ddd0bb; border-top: 4px solid #c96f4f;
+        border-radius: 8px; height: 54mm; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; text-align: center; padding: 7mm 6mm; break-inside: avoid;
+        background: linear-gradient(180deg, #fffdf7, #f4efe3); }
+      .card.novia { border-top-color: #bd6f79; }
+      .card.novio { border-top-color: #6a8dab; }
+      .card .lado { position: absolute; top: 5mm; left: 0; right: 0; font-size: 9px; letter-spacing: .18em;
+        text-transform: uppercase; font-weight: 600; }
+      .card.novia .lado { color: #bd6f79; }
+      .card.novio .lado { color: #6a8dab; }
+      .card .nombre { font-family: Georgia, 'Times New Roman', serif; font-size: 23px; color: #2e3a2f; line-height: 1.15; }
+      .card .mesa { margin-top: 7px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #c96f4f; }
+      .card .menu { margin-top: 9px; font-size: 11px; color: #6f6a55; }
+      .card .menu b { color: #2e3a2f; }
+      .card .menu.esp { margin-top: 9px; padding: 3px 10px; border-radius: 999px;
+        background: #f6e7db; color: #a4512f; font-weight: 600; letter-spacing: .02em; }`;
+    const html = cards.map((c) => {
+      const menuTpl = c.menu
+        ? (esEstandar(c.menu)
+          ? `<div class="menu">${escapeHtml(t('salon.placecards.menu'))}: <b>${escapeHtml(c.menu)}</b></div>`
+          : `<div class="menu esp">${escapeHtml(t('salon.placecards.especial'))}: ${escapeHtml(c.menu)}</div>`)
+        : '';
+      return `<div class="card ${c.lado}"><span class="lado">${escapeHtml(ladoLbl[c.lado])}</span>`
+        + `<div class="nombre">${escapeHtml(c.nombre)}</div>`
+        + `<div class="mesa">${escapeHtml(c.mesa)}</div>${menuTpl}</div>`;
+    }).join('');
     const doc = `<!doctype html><html lang="${getLang()}"><head><meta charset="utf-8"><title>${escapeHtml(t('salon.placecards.title'))}</title><style>${styles}</style></head><body><div class="sheet">${html}</div></body></html>`;
     const w = window.open('', '_blank');
     if (!w) return;
@@ -960,6 +1326,35 @@ export class SalonView extends AppElement {
   _refreshStats() {
     const stats = this.$('#stats');
     if (stats) stats.innerHTML = this._statsTpl;
+  }
+
+  /**
+   * Detecta solapes en el plano (mesa-mesa y mesa-zona) midiendo el lienzo real.
+   * @returns {Array<{a:object,b:object}>}
+   */
+  _computeSolapes() {
+    if (this._vista !== 'plano') return [];
+    const canvas = this.$('#canvas');
+    if (!canvas) return [];
+    const W = canvas.offsetWidth;
+    const H = canvas.offsetHeight;
+    if (!W || !H) return [];
+    const items = [];
+    this._mesas.forEach((m) => {
+      const { w, h } = mesaSize(m);
+      items.push({ id: m.id, nombre: m.nombre, kind: 'mesa', cx: ((m.x ?? 50) / 100) * W, cy: ((m.y ?? 50) / 100) * H, w, h });
+    });
+    this._zonas.filter((z) => z.tipo !== 'sala').forEach((z) => {
+      items.push({ id: z.id, nombre: t(`salon.zona.${z.tipo}`), kind: 'zona', cx: ((z.x ?? 50) / 100) * W, cy: ((z.y ?? 50) / 100) * H, w: z.w, h: z.h });
+    });
+    return detectarSolapes(items, 10);
+  }
+
+  /** Recalcula los solapes con el lienzo ya montado y repinta el panel de Salud. */
+  _refreshSalud() {
+    this._solapes = this._computeSolapes();
+    const el = this.$('#salud');
+    if (el) el.innerHTML = this._saludTpl;
   }
 
   /**

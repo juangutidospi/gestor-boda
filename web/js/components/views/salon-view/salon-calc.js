@@ -215,6 +215,77 @@ export function resumenMesa(asignados) {
 }
 
 /**
+ * ¿Se solapan dos rectángulos centrados (AABB, sin rotación)? Con holgura opcional:
+ * un solape menor que `margin` en ambos ejes no cuenta.
+ * @param {{cx:number,cy:number,w:number,h:number}} a
+ * @param {{cx:number,cy:number,w:number,h:number}} b
+ * @param {number} [margin]
+ * @returns {boolean}
+ */
+export function rectsSolapan(a, b, margin = 0) {
+  return Math.abs(a.cx - b.cx) < (a.w + b.w) / 2 - margin
+    && Math.abs(a.cy - b.cy) < (a.h + b.h) / 2 - margin;
+}
+
+/**
+ * Detecta solapes entre elementos del plano (mesas y zonas). Solo devuelve pares que
+ * impliquen al menos una mesa (dos zonas superpuestas no son problema). Todos los
+ * elementos en las mismas unidades (px del lienzo).
+ * @param {Array<{id:string,nombre:string,kind:'mesa'|'zona',cx:number,cy:number,w:number,h:number}>} items
+ * @param {number} [margin] Holgura para no avisar por roces mínimos.
+ * @returns {Array<{a:object,b:object}>}
+ */
+export function detectarSolapes(items, margin = 8) {
+  const out = [];
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const a = items[i];
+      const b = items[j];
+      if (a.kind !== 'mesa' && b.kind !== 'mesa') continue;
+      if (rectsSolapan(a, b, margin)) out.push({ a, b });
+    }
+  }
+  return out;
+}
+
+/**
+ * Reparte `count` mesas en una rejilla dentro de `area`, saltando las celdas que chocan
+ * con algún obstáculo (zonas: escenario, pista, barra…). Todo en las mismas unidades
+ * (px del lienzo). Devuelve `count` centros `{cx,cy}` (o menos si no cabe).
+ * @param {{cx:number,cy:number,w:number,h:number}} area  Área útil (centrada).
+ * @param {number} count
+ * @param {Array<{cx:number,cy:number,w:number,h:number}>} [obstaculos]
+ * @param {{cw:number,ch:number}} [cell]  Tamaño de celda (mesa + separación).
+ * @returns {Array<{cx:number,cy:number}>}
+ */
+export function autoDistribuir(area, count, obstaculos = [], cell = { cw: 150, ch: 150 }) {
+  if (count <= 0) return [];
+  const cols = Math.max(1, Math.floor(area.w / cell.cw));
+  const rows = Math.ceil(count / cols);
+  const gridW = cols * cell.cw;
+  const gridH = rows * cell.ch;
+  const ox = area.cx - gridW / 2 + cell.cw / 2;
+  const oy = area.cy - gridH / 2 + cell.ch / 2;
+  const foot = { w: cell.cw * 0.82, h: cell.ch * 0.82 };
+  const libre = (s) => !obstaculos.some((o) => rectsSolapan({ cx: s.cx, cy: s.cy, ...foot }, o, 0));
+  // Todas las celdas de una rejilla ampliada (filas extra por si sobran obstáculos).
+  const all = [];
+  for (let r = 0; r < rows + 8; r++) {
+    for (let c = 0; c < cols; c++) all.push({ cx: ox + c * cell.cw, cy: oy + r * cell.ch });
+  }
+  const free = all.filter(libre);
+  if (free.length >= count) return free.slice(0, count);
+  // No caben esquivando todo: garantiza recolocar todas rellenando con celdas que rocen
+  // una zona (el aviso de solape lo marcará para ajustarlas a mano).
+  const picked = free.slice();
+  for (const s of all) {
+    if (picked.length >= count) break;
+    if (!picked.includes(s)) picked.push(s);
+  }
+  return picked.slice(0, count);
+}
+
+/**
  * Recoloca las mesas: la rectangular (presidencial) arriba centrada; las redondas en
  * rejilla centrada. Devuelve una copia con `x,y` nuevos.
  * @param {object[]} mesas

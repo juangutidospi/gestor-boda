@@ -79,6 +79,36 @@ export const styles = css`
   justify-content: center; color: var(--color-neutral-700); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
 }
 
+.sal-plano-grid.is-plain { opacity: .3; }
+
+/* ---------- Editor de sala (zonas) ---------- */
+.sal-zona-sel { font-size: 10px; letter-spacing: .04em; padding: 6px 8px; border-radius: 8px; background: var(--color-surface); border: 1px solid var(--color-divider); color: var(--color-text); max-width: 160px; cursor: pointer; }
+.sal-zonas { position: absolute; inset: 0; pointer-events: none; }
+.sal-zona {
+  position: absolute; transform: translate(-50%, -50%); z-index: 2; pointer-events: auto;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  border-radius: 12px; cursor: grab; user-select: none; touch-action: none;
+  background: color-mix(in srgb, var(--color-neutral-600) 12%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--color-neutral-600) 55%, transparent);
+  color: var(--color-neutral-700);
+}
+.sal-zona:active { cursor: grabbing; }
+.sal-zona-lbl { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; line-height: 1.15; padding: 2px 6px; pointer-events: none; }
+.zona-pista { border-radius: 50% / 42%; background: color-mix(in srgb, var(--color-accent) 12%, transparent); border-color: color-mix(in srgb, var(--color-accent) 55%, transparent); color: var(--color-accent-700); }
+.zona-escenario { background: color-mix(in srgb, var(--color-secondary) 16%, transparent); border-color: color-mix(in srgb, var(--color-secondary) 60%, transparent); color: color-mix(in srgb, var(--color-secondary) 72%, var(--color-text)); }
+.zona-sala { z-index: 1; background: none; border: 2px solid color-mix(in srgb, var(--color-neutral-600) 60%, transparent); border-radius: 16px; align-items: flex-start; justify-content: flex-start; }
+.zona-sala .sal-zona-lbl { color: var(--color-neutral-600); }
+.sal-zona.is-sel { border-style: solid; border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); z-index: 5; }
+/* Tiradores (solo al seleccionar) */
+.sal-zona-del, .sal-zona-h { display: none; }
+.sal-zona.is-sel .sal-zona-del { display: flex; }
+.sal-zona.is-sel .sal-zona-h { display: block; }
+.sal-zona-del { position: absolute; top: -10px; right: -10px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--color-divider); background: var(--color-surface); color: var(--color-accent-700); cursor: pointer; align-items: center; justify-content: center; font-size: 13px; line-height: 1; z-index: 6; }
+.sal-zona-h { position: absolute; background: var(--color-surface); border: 1.5px solid var(--color-accent); z-index: 6; }
+.sal-zona-resize { right: -7px; bottom: -7px; width: 13px; height: 13px; border-radius: 3px; cursor: nwse-resize; }
+.sal-zona-rot { left: 50%; top: -22px; transform: translateX(-50%); width: 13px; height: 13px; border-radius: 50%; cursor: grab; }
+.sal-zona-rot::before { content: ''; position: absolute; left: 50%; top: 12px; width: 1px; height: 11px; background: var(--color-accent); transform: translateX(-50%); }
+
 /* Mesa (envoltorio posicionado en % + cuerpo centrado + sillas) */
 .sal-mesa-wrap { position: absolute; transform: translate(-50%, -50%); pointer-events: none; transition: left .5s cubic-bezier(.22,.61,.36,1), top .5s cubic-bezier(.22,.61,.36,1); }
 .sal-mesa {

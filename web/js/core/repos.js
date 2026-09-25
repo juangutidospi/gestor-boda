@@ -45,6 +45,8 @@ export const proveedoresRepo = collection('proveedores', 'p');
 export const mesasRepo = collection('mesas', 'm');
 /** Reglas de convivencia del salón: `{ id, tipo:'juntos'|'separados', a, b }`. */
 export const reglasRepo = collection('reglas', 'r');
+/** Zonas del plano del salón: `{ id, tipo, x, y, w, h, rot }` (x,y en %; w,h en px). */
+export const zonasRepo = collection('zonas', 'z');
 /** Ajustes del salón: imagen de fondo del plano (data URL). */
 export const salonRepo = {
   getBg() { return get('salon', 'bg', { url: '' }).url || ''; },

@@ -1,6 +1,7 @@
 import { register } from './runner.js';
 import {
   plazas, confirmados, ocupacionMesa, sinAsignar, calcularStats, mesaSize, sillasGeom, autoOrganizar, autoSentar, resumenMesa, saludPlano, resumenGlobal,
+  rectsSolapan, detectarSolapes, autoDistribuir,
 } from '../js/components/views/salon-view/salon-calc.js';
 
 register('salon/calc', () => {
@@ -101,6 +102,30 @@ register('salon/calc', () => {
     g({ menu: 'Vegano', plus: 1 }), g({ menu: 'Vegano', plus: 0 }), g({ menu: 'Estándar', plus: 0 }),
   ]);
   out.push({ name: 'resumenGlobal suma menús especiales (Vegano ×3)', ok: rg.length === 1 && rg[0].menu === 'Vegano' && rg[0].n === 3, detail: JSON.stringify(rg) });
+
+  // Geometría del editor de sala: solapes, detección y auto-distribución.
+  out.push({ name: 'rectsSolapan detecta dos cuadrados que se pisan', ok: rectsSolapan({ cx: 0, cy: 0, w: 100, h: 100 }, { cx: 60, cy: 0, w: 100, h: 100 }) === true, detail: '' });
+  out.push({ name: 'rectsSolapan: separados no se pisan', ok: rectsSolapan({ cx: 0, cy: 0, w: 100, h: 100 }, { cx: 200, cy: 0, w: 100, h: 100 }) === false, detail: '' });
+  out.push({ name: 'rectsSolapan: margen ignora roces mínimos', ok: rectsSolapan({ cx: 0, cy: 0, w: 100, h: 100 }, { cx: 95, cy: 0, w: 100, h: 100 }, 8) === false, detail: '' });
+
+  const items = [
+    { id: 'A', nombre: 'A', kind: 'mesa', cx: 0, cy: 0, w: 80, h: 80 },
+    { id: 'B', nombre: 'B', kind: 'mesa', cx: 40, cy: 0, w: 80, h: 80 }, // pisa A
+    { id: 'Z', nombre: 'Pista', kind: 'zona', cx: 400, cy: 400, w: 80, h: 80 }, // aislada
+    { id: 'C', nombre: 'C', kind: 'mesa', cx: 420, cy: 400, w: 80, h: 80 }, // pisa Z
+  ];
+  const sol = detectarSolapes(items, 4);
+  out.push({ name: 'detectarSolapes encuentra mesa-mesa y mesa-zona (2)', ok: sol.length === 2, detail: `${sol.length}` });
+  out.push({ name: 'detectarSolapes ignora zona-zona', ok: !sol.some((p) => p.a.kind === 'zona' && p.b.kind === 'zona'), detail: '' });
+
+  // Auto-distribución: N centros, esquivando un obstáculo central.
+  const area = { cx: 500, cy: 400, w: 900, h: 700 };
+  const centros = autoDistribuir(area, 6, [], { cw: 150, ch: 150 });
+  out.push({ name: 'autoDistribuir devuelve N centros', ok: centros.length === 6, detail: `${centros.length}` });
+  const obst = [{ cx: 500, cy: 400, w: 300, h: 300 }];
+  const cd = autoDistribuir(area, 8, obst, { cw: 150, ch: 150 });
+  const pisaObst = cd.some((c) => rectsSolapan({ ...c, w: 150 * 0.82, h: 150 * 0.82 }, obst[0], 0));
+  out.push({ name: 'autoDistribuir esquiva el obstáculo', ok: cd.length === 8 && !pisaObst, detail: `${cd.length} pisa=${pisaObst}` });
 
   return out;
 });
