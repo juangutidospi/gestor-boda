@@ -1,21 +1,27 @@
-/* Tokens del gestor de bodas. Tema claro = paleta exacta del prototipo Fincas.
+/* Tokens del gestor de bodas. Tema claro = paleta "Earthy Minimal"
+   (verde primario, salvia secundario, arena terciario, terracota acento, crema fondo).
    Se enlaza en el <head> y se hereda al shadow DOM de cada componente. */
 :root {
-  /* Roles base (prototipo) */
-  --color-bg: #f7f2ea;
-  --color-surface: #fffdf9;
-  --color-text: #3d3227;
-  --color-divider: #e6dccd;
-  --color-accent: #b08256;
-  --color-accent-700: #8a6239;
-  --color-accent-100: #f4ece0;
-  --color-accent-200: #ecdfcd;
-  --color-accent-300: #ddc8ab;
-  --color-neutral-100: #f9f5ee;
-  --color-neutral-200: #eee7db;
-  --color-neutral-600: #b6a894;
-  --color-neutral-700: #6f6150;
-  --color-neutral-900: #3d3227;
+  /* Roles base (Earthy Minimal) */
+  --color-bg: #f8f6ee;
+  --color-surface: #fffdf7;
+  --color-text: #2e3a2f;
+  --color-divider: #e4ddcc;
+  --color-accent: #c96f4f;
+  --color-accent-700: #a4512f;
+  --color-accent-100: #f6e9e1;
+  --color-accent-200: #efd8cb;
+  --color-accent-300: #e2b3a0;
+  --color-neutral-100: #f3efe4;
+  --color-neutral-200: #e7e0ce;
+  --color-neutral-600: #a89d84;
+  --color-neutral-700: #5f6a55;
+  --color-neutral-900: #2e3a2f;
+
+  /* Paleta completa (por si se necesita explícita) */
+  --color-secondary: #6b7f5b;      /* salvia */
+  --color-secondary-700: #55663f;
+  --color-tertiary: #d9c9b2;       /* arena */
 
   /* Derivados (valen para ambos temas con color-mix) */
   --color-text-muted: color-mix(in srgb, var(--color-text) 48%, transparent);
@@ -43,27 +49,30 @@
   /* Lado (novia/novio) y confirmación (RSVP) — vista Invitados */
   --lado-novia: #bd6f79; --lado-novia-bg: #f7e9eb; --lado-novia-ink: #783942;
   --lado-novio: #6a8dab; --lado-novio-bg: #e6eef4; --lado-novio-ink: #2f4c66;
-  --rsvp-si-bg: #eef4ec; --rsvp-si-line: #cbdcc5; --rsvp-si-dot: #5a9e6c;
+  --rsvp-si-bg: #eef2e7; --rsvp-si-line: #cdd8bd; --rsvp-si-dot: #6b7f5b;
   --rsvp-no-bg: #f2eeea; --rsvp-no-line: #ded4c8; --rsvp-no-dot: color-mix(in srgb, var(--color-text) 34%, transparent);
   --rsvp-pend-dot: var(--color-accent);
 }
 
-/* Tema oscuro: cálido, derivado de la misma paleta. Solo se redefinen los roles. */
+/* Tema oscuro: derivado de la misma paleta Earthy Minimal (verde profundo + terracota). */
 [data-theme="dark"] {
-  --color-bg: #211c16;
-  --color-surface: #2b241c;
-  --color-text: #efe7da;
+  --color-bg: #1b211a;
+  --color-surface: #262e23;
+  --color-text: #edefe3;
   --color-divider: color-mix(in srgb, var(--color-text) 16%, transparent);
-  --color-accent: #cf9d68;
-  --color-accent-700: #b7854f;
+  --color-accent: #d98a6b;
+  --color-accent-700: #c1704f;
   --color-accent-100: color-mix(in srgb, var(--color-accent) 22%, var(--color-surface));
   --color-accent-200: color-mix(in srgb, var(--color-accent) 30%, var(--color-surface));
   --color-accent-300: color-mix(in srgb, var(--color-accent) 62%, #fff);
-  --color-neutral-100: #322a20;
-  --color-neutral-200: #3a3126;
-  --color-neutral-600: #a3927c;
-  --color-neutral-700: #c3b6a2;
-  --color-neutral-900: #efe7da;
+  --color-neutral-100: #2b3327;
+  --color-neutral-200: #333c2e;
+  --color-neutral-600: #9aa588;
+  --color-neutral-700: #c5ccb7;
+  --color-neutral-900: #edefe3;
+  --color-secondary: #9fb488;
+  --color-secondary-700: #7f966a;
+  --color-tertiary: #d9c9b2;
   --shadow-sm: 0 0 0 1px color-mix(in srgb, var(--color-text) 16%, transparent);
   --shadow-md: 0 0 0 1px color-mix(in srgb, var(--color-text) 20%, transparent), 0 6px 18px rgb(0 0 0 / .5);
   --shadow-lg: 0 0 0 1px color-mix(in srgb, var(--color-text) 28%, transparent), 0 16px 40px rgb(0 0 0 / .6);
@@ -71,7 +80,7 @@
   /* Lado (novia/novio) y confirmación (RSVP) — vista Invitados */
   --lado-novia: #dba7ae; --lado-novia-bg: color-mix(in srgb, #dba7ae 22%, var(--color-surface)); --lado-novia-ink: #eecacf;
   --lado-novio: #93b3ce; --lado-novio-bg: color-mix(in srgb, #93b3ce 22%, var(--color-surface)); --lado-novio-ink: #d6e3ef;
-  --rsvp-si-bg: color-mix(in srgb, #5f9e6f 18%, var(--color-surface)); --rsvp-si-line: color-mix(in srgb, #5f9e6f 40%, transparent); --rsvp-si-dot: #79bb8c;
+  --rsvp-si-bg: color-mix(in srgb, #6b7f5b 22%, var(--color-surface)); --rsvp-si-line: color-mix(in srgb, #6b7f5b 42%, transparent); --rsvp-si-dot: #9fb488;
   --rsvp-no-bg: color-mix(in srgb, var(--color-text) 8%, var(--color-surface)); --rsvp-no-line: var(--color-divider); --rsvp-no-dot: color-mix(in srgb, var(--color-text) 40%, transparent);
   --rsvp-pend-dot: var(--color-accent);
 }
