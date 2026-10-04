@@ -106,15 +106,12 @@ export class ProveedoresView extends AppElement {
   render() {
     this.shadowRoot.innerHTML = `
       <div class="view-content">
-        <div class="page-head">
-          <span class="eyebrow">${escapeHtml(t('nav.proveedores'))}</span>
-          <h1>${escapeHtml(t('prov.title'))}</h1>
-          <p class="muted">${escapeHtml(t('prov.subtitle'))}</p>
+        <div class="prov-dash">
+          <div id="hero" class="prov-dash-hero">${this._heroTpl}</div>
+          <div id="stats" class="prov-dash-stats">${this._statsTpl}</div>
         </div>
-        <div id="hero">${this._heroTpl}</div>
         <div id="insights">${this._insightsTpl}</div>
         <div id="pagos">${this._pagosTpl}</div>
-        <div id="stats">${this._statsTpl}</div>
         ${this._filtersTpl}
         <section class="prov-chips-wrap" id="chips">${this._chipsTpl}</section>
         <div class="prov-toolbar">
@@ -324,15 +321,17 @@ export class ProveedoresView extends AppElement {
           </label>
           <button type="button" class="prov-mono" data-ficha="${escapeHtml(p.id)}" title="${escapeHtml(t('prov.ficha.abrir'))}">${escapeHtml(this._monograma(p.categoria))}</button>
           <div class="prov-card-id">
-            <span class="prov-card-cat">${escapeHtml(p.categoria)}</span>
+            <div class="prov-card-head">
+              <span class="prov-card-cat">${escapeHtml(p.categoria)}</span>
+              <div class="prov-card-tr">
+                ${prog.done ? `<span class="prov-check" title="${escapeHtml(t('prov.ficha.checklist'))}">✓ ${prog.done}/${prog.total}</span>` : ''}
+                <button type="button" class="prov-badge-btn" data-badge="${escapeHtml(p.id)}" aria-label="${escapeHtml(t('prov.card.cambiarEstado'))}" aria-haspopup="menu">
+                  <estado-badge class="prov-badge" data-kind="prov" data-value="${escapeHtml(p.estado)}"></estado-badge>
+                </button>
+              </div>
+            </div>
             <h3><button type="button" class="prov-name-btn" data-ficha="${escapeHtml(p.id)}">${escapeHtml(p.nombre)}</button></h3>
             <span class="prov-card-contacto muted">${escapeHtml(contactoLinea)}</span>
-          </div>
-          <div class="prov-card-tr">
-            ${prog.done ? `<span class="prov-check" title="${escapeHtml(t('prov.ficha.checklist'))}">✓ ${prog.done}/${prog.total}</span>` : ''}
-            <button type="button" class="prov-badge-btn" data-badge="${escapeHtml(p.id)}" aria-label="${escapeHtml(t('prov.card.cambiarEstado'))}" aria-haspopup="menu">
-              <estado-badge class="prov-badge" data-kind="prov" data-value="${escapeHtml(p.estado)}"></estado-badge>
-            </button>
           </div>
         </div>
         <div class="prov-card-panel">
