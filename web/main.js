@@ -50,6 +50,13 @@ function setActiveView(id) {
   if (typeof el.refresh === 'function') el.refresh();
   else fillSoon(el); // vistas no-Finca: placeholder "próximamente"
   if (location.hash.slice(1) !== known) history.replaceState(null, '', `#${known}`);
+  closeMenu(); // cierra el menú móvil tras navegar
+}
+
+/** Cierra el menú hamburguesa (móvil). */
+function closeMenu() {
+  document.querySelector('.nav')?.classList.remove('is-open');
+  document.getElementById('nav-toggle')?.setAttribute('aria-expanded', 'false');
 }
 
 /**
@@ -63,6 +70,13 @@ function fillSoon(el) {
       <p>${escapeHtml(t('common.soon.desc'))}</p>
     </div>`;
 }
+
+// Menú hamburguesa (móvil): alterna el desplegable
+document.getElementById('nav-toggle').addEventListener('click', () => {
+  const nav = document.querySelector('.nav');
+  const open = nav.classList.toggle('is-open');
+  document.getElementById('nav-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+});
 
 /** @param {string} id Tema a aplicar ('light' | 'dark'). */
 function applyTheme(id) { document.documentElement.dataset.theme = id; }

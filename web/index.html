@@ -10,11 +10,14 @@
 <link rel="stylesheet" href="css/tokens.css">
 <style>
   html, body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
-  .nav { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: var(--space-4);
+  /* Evita el scroll/desbordamiento horizontal accidental (clip no rompe position:sticky) */
+  body { overflow-x: clip; }
+  .nav { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap;
     background: var(--color-surface); border-bottom: 1px solid var(--color-divider);
     padding: var(--space-3) var(--space-6); }
-  .nav-brand { font-family: var(--font-heading); font-weight: 600; font-size: 20px; margin-right: var(--space-8); }
-  .nav-links { display: flex; gap: var(--space-2); margin-right: auto; flex-wrap: wrap; }
+  .nav-brand { font-family: var(--font-heading); font-weight: 600; font-size: 20px; margin-right: auto; }
+  .nav-panel { display: flex; align-items: center; gap: var(--space-4); }
+  .nav-links { display: flex; gap: var(--space-2); }
   .nav-links button { min-height: 40px; padding: 0 14px; border: 0; background: transparent; cursor: pointer;
     font-family: var(--font-body); font-size: 13px; color: var(--color-text); border-radius: 999px; }
   .nav-links button:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
@@ -23,12 +26,37 @@
   .nav-actions { display: flex; gap: var(--space-2); align-items: center; }
   .nav-actions button { min-height: 40px; padding: 0 14px; border: 1px solid var(--color-divider);
     background: var(--color-surface); cursor: pointer; border-radius: 999px; font-size: 12.5px; color: var(--color-text); }
-  .nav-links button:focus-visible, .nav-actions button:focus-visible, .skip:focus-visible {
+  /* Botón hamburguesa (oculto en escritorio) */
+  .nav-toggle { display: none; width: 42px; height: 42px; border: 1px solid var(--color-divider); border-radius: 12px;
+    background: var(--color-surface); cursor: pointer; align-items: center; justify-content: center; }
+  .nav-toggle-bars, .nav-toggle-bars::before, .nav-toggle-bars::after {
+    content: ''; display: block; width: 18px; height: 2px; border-radius: 2px; background: var(--color-text); transition: transform .2s ease, opacity .2s ease; }
+  .nav-toggle-bars { position: relative; }
+  .nav-toggle-bars::before { position: absolute; top: -6px; }
+  .nav-toggle-bars::after { position: absolute; top: 6px; }
+  .nav.is-open .nav-toggle-bars { background: transparent; }
+  .nav.is-open .nav-toggle-bars::before { transform: translateY(6px) rotate(45deg); }
+  .nav.is-open .nav-toggle-bars::after { transform: translateY(-6px) rotate(-45deg); }
+  .nav-links button:focus-visible, .nav-actions button:focus-visible, .nav-toggle:focus-visible, .skip:focus-visible {
     outline: 2px solid var(--color-accent); outline-offset: 2px; }
   main.content { padding: var(--space-6); }
   main.content:focus { outline: none; }
   .view { display: none; }
   .view.active { display: block; }
+  /* Móvil/tablet pequeña: menú hamburguesa desplegable */
+  @media (max-width: 760px) {
+    .nav { padding: var(--space-3) var(--space-4); }
+    .nav-brand { font-size: 18px; }
+    .nav-toggle { display: inline-flex; }
+    .nav-panel { display: none; flex-basis: 100%; flex-direction: column; align-items: stretch; gap: var(--space-2);
+      margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-divider); }
+    .nav.is-open .nav-panel { display: flex; }
+    .nav-links { flex-direction: column; align-items: stretch; gap: 2px; }
+    .nav-links button { text-align: left; min-height: 46px; font-size: 15px; }
+    .nav-actions { gap: var(--space-3); }
+    .nav-actions button { flex: 1; min-height: 44px; }
+    main.content { padding: var(--space-4) var(--space-3); }
+  }
   /* Enlace para saltar al contenido (teclado/lectores de pantalla) */
   .skip { position: absolute; left: -9999px; top: 8px; z-index: 40; padding: 8px 14px; border-radius: 8px;
     background: var(--color-accent); color: var(--color-surface); text-decoration: none; font-size: 13px; }
@@ -42,10 +70,15 @@
   <a class="skip" href="#content" data-i18n="chrome.skip">Saltar al contenido</a>
   <nav class="nav" aria-label="Principal">
     <span class="nav-brand" id="brand" data-i18n="app.brand">Nuestra boda</span>
-    <div class="nav-links" id="nav"></div>
-    <div class="nav-actions">
-      <button id="theme" data-i18n="chrome.theme">Tema</button>
-      <button id="lang" data-i18n="chrome.lang">ES / EN</button>
+    <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Menú" aria-expanded="false" aria-controls="nav-panel">
+      <span class="nav-toggle-bars" aria-hidden="true"></span>
+    </button>
+    <div class="nav-panel" id="nav-panel">
+      <div class="nav-links" id="nav"></div>
+      <div class="nav-actions">
+        <button id="theme" data-i18n="chrome.theme">Tema</button>
+        <button id="lang" data-i18n="chrome.lang">ES / EN</button>
+      </div>
     </div>
   </nav>
 
