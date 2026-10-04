@@ -13,13 +13,29 @@ export const styles = css`
    de la vista no quede tapado. */
 .page-head { padding-top: var(--space-6); }
 
-/* ---------- Stats ---------- */
-.inv-stats-row {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider);
+/* ---------- Cabecera tipo dashboard: hero (donut) + KPIs lado a lado ---------- */
+/* padding-top compensa el nav sticky (antes lo hacía .page-head, ya retirado). */
+.inv-board { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: var(--space-4); align-items: stretch; padding-top: var(--space-6); }
+.inv-board-hero, .inv-board-stats { min-width: 0; }
+.inv-board-hero .inv-hero { height: 100%; margin-bottom: 0; gap: var(--space-4); }
+.inv-board-hero .inv-hero-body { min-width: 130px; }
+.inv-board-hero .inv-hero-legend { flex-direction: column; gap: 6px; }
+@media (max-width: 820px) {
+  .inv-board { grid-template-columns: 1fr; }
+  .inv-board-hero .inv-hero-body { min-width: 220px; }
+  .inv-board-hero .inv-hero-legend { flex-direction: row; }
 }
-.inv-stat { padding: var(--space-4); border-left: 1px solid var(--color-divider); }
-.inv-stat:first-child { border-left: 0; }
+
+/* ---------- Stats (KPIs como mini-tarjetas compactas, centradas junto al donut) ---------- */
+.inv-board-stats { display: flex; align-items: center; }
+.inv-stats-row {
+  width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  gap: var(--space-3);
+}
+.inv-stat {
+  padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-divider);
+  border-radius: 14px; display: flex; flex-direction: column; gap: 2px;
+}
 .inv-stat-label { display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); }
 .inv-stat-value { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 30px; line-height: 1.1; margin-top: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .inv-stat-note { display: block; }
@@ -140,7 +156,7 @@ export const styles = css`
 .inv-grupo-head::after { content: ''; flex: 1; height: 1px; background: var(--color-divider); min-width: 40px; }
 
 /* ---------- Rejilla y tarjeta de invitado ---------- */
-.inv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding-top: var(--space-3); }
+.inv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; padding-top: var(--space-3); }
 
 /* Barra de confirmación por círculo (en la cabecera del grupo). */
 .inv-grupo-bar { flex: none; width: 84px; height: 5px; border-radius: 999px; overflow: hidden;

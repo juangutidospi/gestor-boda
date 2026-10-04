@@ -150,13 +150,11 @@ export class InvitadosView extends AppElement {
     const visibles = this._visible;
     this.shadowRoot.innerHTML = `
       <div class="view-content">
-        <div class="page-head">
-          <span class="eyebrow">${escapeHtml(t('nav.invitados'))}</span>
-          <h1>${escapeHtml(t('inv.title'))}</h1>
+        <div class="inv-board">
+          <div id="hero" class="inv-board-hero">${this._heroTpl}</div>
+          <div id="stats" class="inv-board-stats">${this._statsTpl}</div>
         </div>
-        <div id="hero">${this._heroTpl}</div>
         <div id="insights">${this._insightsTpl}</div>
-        <div id="stats">${this._statsTpl}</div>
         ${this._filtrosTpl}
         <div id="chips">${this._chipsTpl}</div>
         <div id="list">${this._listTpl}</div>
