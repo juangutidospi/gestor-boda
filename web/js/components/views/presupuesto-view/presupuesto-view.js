@@ -71,16 +71,6 @@ export class PresupuestoView extends AppElement {
   render() {
     this.shadowRoot.innerHTML = `
       <div class="view-content">
-        <div class="page-head pres-head">
-          <div class="pres-head-txt">
-            <span class="eyebrow">${escapeHtml(t('nav.presupuesto'))}</span>
-            <h1>${escapeHtml(t('pres.title'))}</h1>
-          </div>
-          <div class="field pres-limite">
-            <label for="pv-limite">${escapeHtml(t('pres.limite'))}</label>
-            <input class="input" id="pv-limite" type="number" min="0" step="1000" value="${escapeHtml(String(this._limite))}">
-          </div>
-        </div>
         <div id="body">${this._data ? this._bodyTpl : ''}</div>
         <div id="confetti" aria-hidden="true"></div>
         <app-toast id="toast"></app-toast>
@@ -103,6 +93,10 @@ export class PresupuestoView extends AppElement {
             <div class="pres-k">${escapeHtml(t('pres.total.label'))}</div>
             <div class="pres-total-num" data-count="${d.total}">${escapeHtml(d.totalLabel)}</div>
             <div class="muted pres-total-sub">${escapeHtml(this._tx(d.porInvitado))}</div>
+          </div>
+          <div class="field pres-limite">
+            <label for="pv-limite">${escapeHtml(t('pres.limite'))}</label>
+            <input class="input" id="pv-limite" type="number" min="0" step="1000" value="${escapeHtml(String(this._limite))}">
           </div>
           <div class="pres-margen">
             <div class="pres-k">${escapeHtml(t(difLabelKey))}</div>
@@ -165,7 +159,9 @@ export class PresupuestoView extends AppElement {
   }
 
   afterRender() {
-    this.on(this.$('#pv-limite'), 'input', (e) => this._onLimite(e));
+    // El input de límite vive dentro de #body (repintable), así que se cablea por
+    // delegación y _apply() preserva su foco/caret.
+    this.on(this.$('#body'), 'input', (e) => { if (e.target.id === 'pv-limite') this._onLimite(e); });
     this.on(this.$('#body'), 'click', (e) => this._onBodyClick(e));
     this._animate();
   }
@@ -183,11 +179,19 @@ export class PresupuestoView extends AppElement {
     if (nav) window.location.hash = `#${nav.dataset.nav}`;
   }
 
-  /** Recalcula y repinta solo el cuerpo (no el input), re-animando barra y contadores. */
+  /** Recalcula y repinta el cuerpo preservando el foco/caret del input de límite. */
   _apply() {
     this._recompute();
     const body = this.$('#body');
-    if (body) body.innerHTML = this._bodyTpl;
+    if (!body) return;
+    const active = this.shadowRoot.activeElement;
+    const enLimite = active && active.id === 'pv-limite';
+    const caret = enLimite ? active.selectionStart : null;
+    body.innerHTML = this._bodyTpl;
+    if (enLimite) {
+      const el = this.$('#pv-limite');
+      if (el) { el.focus(); try { el.setSelectionRange(caret, caret); } catch { /* noop */ } }
+    }
     this._animate();
     this._maybeCelebrate();
   }

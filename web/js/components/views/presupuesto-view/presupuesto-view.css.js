@@ -7,23 +7,19 @@ import { css } from '../../../core/css.js';
 export const styles = css`
 :host { display: block; position: relative; }
 
-.page-head { padding-top: var(--space-6); }
+/* padding-top compensa el nav sticky (antes lo hacía .page-head, ya retirado). */
+#body { padding-top: var(--space-6); }
 
-/* ---------- Cabecera con el input de límite ---------- */
-/* Fila: el texto ocupa el ancho a la izquierda y el límite queda a la derecha.
-   (Sobrescribe el flex-direction:column del .page-head base.) */
-.pres-head { flex-direction: row; flex-wrap: wrap; gap: var(--space-6); align-items: flex-end; }
-.pres-head-txt { flex: 1 1 320px; min-width: 260px; display: flex; flex-direction: column; gap: 2px; }
-.pres-head-txt p { margin: 0; max-width: 52ch; }
-.pres-limite { flex: 0 0 auto; width: 240px; margin-bottom: 0; }
-
-/* ---------- Tarjeta de resumen ---------- */
+/* ---------- Tarjeta de resumen (hace de cabecera dashboard) ---------- */
 .pres-resumen {
   background: var(--color-surface); border: 1px solid var(--color-divider);
   border-radius: 18px; padding: var(--space-6); box-shadow: var(--shadow-sm);
   margin-bottom: var(--space-4);
 }
-.pres-resumen-top { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-end; }
+/* Total (izq) · Límite editable (centro, llena el hueco) · Margen (der) */
+.pres-resumen-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-4) var(--space-6); align-items: flex-end; }
+.pres-total, .pres-margen { flex: 0 1 auto; min-width: 0; }
+.pres-limite { flex: 0 0 auto; width: 180px; margin: 0; align-self: flex-end; }
 .pres-k { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); }
 .pres-total { min-width: 0; }
 .pres-total-num {
@@ -31,7 +27,7 @@ export const styles = css`
   line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .pres-total-sub { font-size: 13px; margin-top: 2px; }
-.pres-margen { margin-left: auto; text-align: right; }
+.pres-margen { text-align: right; }
 .pres-margen-num {
   font-family: var(--font-heading); font-weight: 600; font-size: 36px; line-height: 1;
   white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--color-text);
@@ -101,6 +97,17 @@ export const styles = css`
 #confetti { position: absolute; left: 30%; top: 220px; width: 0; height: 0; z-index: 40; pointer-events: none; }
 .pres-confetti-bit { position: absolute; width: 8px; height: 8px; border-radius: 2px; animation: presConfetti 1.3s cubic-bezier(.2,.7,.3,1) forwards; }
 @keyframes presConfetti { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)); } }
+
+/* ---------- Móvil ---------- */
+@media (max-width: 600px) {
+  .pres-resumen { padding: var(--space-4); border-radius: 14px; }
+  .pres-resumen-top { gap: var(--space-3); }
+  .pres-margen { margin-left: 0; text-align: left; }
+  .pres-margen-num { font-size: 30px; }
+  .pres-leg-senales { margin-left: 0; }
+  .pres-head-txt { min-width: 0; }
+  .pres-limite { width: 100%; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .pres-bar-seg { transition: none; }
