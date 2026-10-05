@@ -17,6 +17,17 @@ export const styles = css`
 .sal-mini-value { font-family: var(--font-heading); font-weight: 600; font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
 .sal-mini-label { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--color-neutral-700); white-space: nowrap; }
 
+/* En móvil el plano no tiene sentido: solo Listado. Se ocultan el toggle y los
+   controles propios del plano, y se ordena la cabecera en filas limpias. */
+@media (max-width: 760px) {
+  #sv-vista, #sv-fondo, #sv-plano { display: none !important; }
+  .sal-toolbar { gap: var(--space-3) var(--space-4); padding-top: var(--space-4); }
+  .sal-statstrip { order: 1; width: 100%; gap: var(--space-3) var(--space-5); }
+  .sal-legend { order: 2; width: 100%; margin-left: 0; }
+  #sv-tarjetas, #sv-export, #sv-add { order: 3; }
+  #sv-add { margin-left: auto; }
+}
+
 /* ---------- Rejilla: escenario + aside lateral ---------- */
 .sal-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
 @media (max-width: 920px) { .sal-grid { grid-template-columns: 1fr; } }
