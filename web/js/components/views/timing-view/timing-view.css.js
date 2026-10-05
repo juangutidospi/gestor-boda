@@ -186,6 +186,16 @@ export const styles = css`
 .tl-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .tl-legend-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tl-c); }
 
+/* Móvil/tablet: el título del momento ocupa su propia línea (si no, los controles
+   —estado, duración y acciones— lo exprimen y rompe palabra por palabra). */
+@media (max-width: 760px) {
+  .tl-card-top { flex-wrap: wrap; row-gap: 6px; }
+  .tl-card-titulo { flex: 1 1 100%; order: 1; }
+  .tl-estado { order: 2; }
+  .tl-dorada-chip { order: 3; }
+  .tl-card-dur { order: 4; }
+  .tl-card-acts { order: 5; opacity: 1; margin-left: auto; }
+}
 @media (max-width: 560px) {
   .tl-edit { grid-template-columns: 1fr; }
   .tl-count-fields { flex-direction: column; }
