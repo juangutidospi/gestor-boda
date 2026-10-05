@@ -4,7 +4,7 @@ import { styles } from './invitados-view.css.js';
 import { t } from '../../../i18n/index.js';
 import { ENUMS } from '../../../core/enums.js';
 import {
-  parseAcomp, filtrar, pax, circulosDe, menusDe, agrupar, calcularStats,
+  parseAcomp, filtrar, circulosDe, menusDe, agrupar, calcularStats,
   siguienteInvitacion, accionInvitacion,
 } from './invitados-calc.js';
 import {
@@ -107,16 +107,30 @@ export class InvitadosView extends AppElement {
   _view = 'tarjetas';
   _addOpen = false;
   _draft = draftVacio();
+  /** Id del invitado abierto en el modal de detalle (móvil), o null. */
+  _detalleId = null;
   /** @type {Set<string>} Ids seleccionados para acciones en lote. */
   _selected = new Set();
   /** Recuerda si ya estaba todo confirmado (para no repetir la celebración). */
   _wasComplete = false;
 
-  /** Registra los atajos de teclado UNA sola vez (no en afterRender). */
+  /** Registra los atajos de teclado y el observador de móvil UNA sola vez. */
   connectedCallback() {
     super.connectedCallback();
     this.on(window, 'keydown', this._onKey);
+    // En móvil, el listado en tabla no cabe: se muestra compacto con modal de detalle.
+    this._mq = window.matchMedia('(max-width: 760px)');
+    this._onMq = () => this._paint();
+    this._mq.addEventListener('change', this._onMq);
   }
+
+  disconnectedCallback() {
+    this._mq?.removeEventListener('change', this._onMq);
+    super.disconnectedCallback();
+  }
+
+  /** @returns {boolean} ¿Pantalla de móvil/tablet pequeña? */
+  get _esMovil() { return !!this._mq?.matches; }
 
   /**
    * Atajos: "/" enfoca el buscador; con una tarjeta enfocada, c/p/n fija la
@@ -159,19 +173,12 @@ export class InvitadosView extends AppElement {
         <div id="chips">${this._chipsTpl}</div>
         <div id="list">${this._listTpl}</div>
         <div id="empty">${visibles.length ? '' : this._emptyTpl}</div>
-        <p class="inv-foot muted">${escapeHtml(this._footTxt)}</p>
         <div id="overlay">${this._addOpen ? this._altaTpl : ''}</div>
+        <div id="detalle">${this._detalleId ? this._detalleTpl() : ''}</div>
         <div id="bulkbar">${this._bulkbarTpl}</div>
         <div id="confetti" aria-hidden="true"></div>
         <app-toast id="toast"></app-toast>
       </div>`;
-  }
-
-  /** @returns {string} Texto del pie: personas en lista y base de cálculo de coste. */
-  get _footTxt() {
-    const n = this._invitados.reduce((a, g) => a + pax(g), 0);
-    const inv = configRepo.get().guestCount || 140;
-    return t('inv.foot', { n, inv });
   }
 
   /** @returns {string} Las siete tarjetas de estadística. */
@@ -441,6 +448,7 @@ export class InvitadosView extends AppElement {
    * @returns {string} Tabla de invitados (modo listado).
    */
   _tablaTpl(lista) {
+    if (this._esMovil) return this._mlistTpl(lista);
     return `
       <div class="inv-table-wrap">
         <table class="inv-table">
@@ -501,6 +509,92 @@ export class InvitadosView extends AppElement {
         </td>
         <td><button class="btn btn-ghost" data-remove="${escapeHtml(g.id)}" type="button">${escapeHtml(t('inv.card.quitar'))}</button></td>
       </tr>`;
+  }
+
+  /**
+   * @param {object[]} lista
+   * @returns {string} Listado compacto para móvil: lo relevante + abre modal de detalle.
+   */
+  _mlistTpl(lista) {
+    return `<ul class="inv-mlist">${lista.map((g) => {
+    const lado = ladoTokens(g.lado);
+    const plus = Number(g.plus) || 0;
+    const nombre = `${g.nombre}${plus ? ` +${plus}` : ''}`;
+    return `<li><button class="inv-mitem" data-detalle="${escapeHtml(g.id)}" data-rsvp="${escapeHtml(g.rsvp)}" type="button">
+        <span class="inv-avatar inv-avatar-sm" style="background:${lado.bg};color:${lado.ink};--card-lado:${lado.color}" aria-hidden="true">${escapeHtml(iniciales(g.nombre))}<span class="inv-avatar-status"></span></span>
+        <span class="inv-mitem-txt">
+          <span class="inv-mitem-name">${escapeHtml(nombre)}</span>
+          <span class="inv-mitem-sub muted">${ladoIcon(g.lado)}${escapeHtml(lado.label)} · ${escapeHtml(g.grupo)}</span>
+        </span>
+        <span class="inv-mitem-chev" aria-hidden="true">›</span>
+      </button></li>`;
+  }).join('')}</ul>`;
+  }
+
+  /** @returns {string} Modal con todo el detalle del invitado abierto (móvil). */
+  _detalleTpl() {
+    const g = this._invitados.find((x) => x.id === this._detalleId);
+    if (!g) return '';
+    const lado = ladoTokens(g.lado);
+    const plus = Number(g.plus) || 0;
+    const invLabel = t(ENUMS.invInvitacion[g.invitacion || 'sin enviar']);
+    const menuEspecial = g.menu && g.menu !== 'Estándar';
+    const mesaNombre = this._mesas.find((m) => m.id === g.mesa)?.nombre || t('inv.card.sinMesa');
+    const comps = Array.isArray(g.acompanantes) ? g.acompanantes.filter(Boolean) : [];
+    const row = (k, v) => `<div class="inv-det-row"><dt>${escapeHtml(k)}</dt><dd>${v}</dd></div>`;
+    return `
+      <modal-dialog id="detalle-dialog" width="440px">
+        <div class="inv-det">
+          <div class="inv-det-head">
+            <span class="inv-avatar" style="background:${lado.bg};color:${lado.ink};--card-lado:${lado.color}">${escapeHtml(iniciales(g.nombre))}</span>
+            <div class="inv-det-id">
+              <div class="inv-det-name">${escapeHtml(g.nombre)}${plus ? ` <span class="muted">+${plus}</span>` : ''}</div>
+              <span class="inv-pill" style="background:${lado.bg};color:${lado.ink}">${ladoIcon(g.lado)}${escapeHtml(lado.label)}</span>
+            </div>
+          </div>
+          <dl class="inv-det-rows">
+            ${row(t('inv.table.circulo'), escapeHtml(g.grupo))}
+            ${row(t('inv.table.menu'), menuEspecial ? `<span class="tag tag-accent">${escapeHtml(g.menu)}</span>` : `<span class="muted">${escapeHtml(g.menu || 'Estándar')}</span>`)}
+            ${row(t('inv.table.invitacion'), escapeHtml(invLabel))}
+            ${row(t('inv.table.mesa'), escapeHtml(mesaNombre))}
+            ${plus ? row(t('inv.table.acomp'), escapeHtml(comps.length ? comps.join(', ') : `+${plus}`)) : ''}
+            ${g.nota ? row(t('inv.detalle.nota'), escapeHtml(g.nota)) : ''}
+          </dl>
+          <label class="field inv-det-rsvp">
+            <span>${escapeHtml(t('inv.table.confirmacion'))}</span>
+            <select class="input" data-rsvp="${escapeHtml(g.id)}">
+              <option value="confirmado"${g.rsvp === 'confirmado' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.confirmado))}</option>
+              <option value="pendiente"${g.rsvp === 'pendiente' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.pendiente))}</option>
+              <option value="no"${g.rsvp === 'no' ? ' selected' : ''}>${escapeHtml(t(ENUMS.invRsvp.no))}</option>
+            </select>
+          </label>
+          <div class="inv-det-acts">
+            <button class="btn btn-ghost" data-remove="${escapeHtml(g.id)}" type="button">${escapeHtml(t('inv.card.quitar'))}</button>
+          </div>
+        </div>
+      </modal-dialog>`;
+  }
+
+  /** @param {string} id Abre el modal de detalle. */
+  _openDetalle(id) { this._detalleId = id; this._paintDetalle(); }
+
+  /** Cierra el modal de detalle. */
+  _closeDetalle() {
+    this._detalleId = null;
+    const el = this.$('#detalle');
+    if (el) el.innerHTML = '';
+  }
+
+  /** Repinta y abre el diálogo de detalle. */
+  _paintDetalle() {
+    const el = this.$('#detalle');
+    if (el) el.innerHTML = this._detalleId ? this._detalleTpl() : '';
+    const dlg = this.$('#detalle-dialog');
+    if (dlg) {
+      dlg.heading = this._invitados.find((x) => x.id === this._detalleId)?.nombre || '';
+      this.on(dlg, 'close', () => this._closeDetalle());
+      dlg.open();
+    }
   }
 
   /** @returns {string} Estado vacío cuando ningún filtro coincide. */
@@ -585,6 +679,9 @@ export class InvitadosView extends AppElement {
     this.on(this.$('#bulkbar'), 'click', (e) => this._onBulkClick(e));
     this.on(this.$('#list'), 'click', (e) => this._onListClick(e));
     this.on(this.$('#list'), 'change', (e) => this._onListChange(e));
+    // Modal de detalle (móvil): cambiar RSVP o quitar desde dentro.
+    this.on(this.$('#detalle'), 'change', (e) => { const s = e.target.closest('[data-rsvp]'); if (s) this._setRsvp(s.dataset.rsvp, s.value); });
+    this.on(this.$('#detalle'), 'click', (e) => { const rm = e.target.closest('[data-remove]'); if (rm) { this._closeDetalle(); this._removeInvitado(rm.dataset.remove); } });
     this.on(this.$('#empty'), 'click', (e) => { if (e.target.closest('#empty-add')) this._openAdd(); });
     this.on(this.$('#overlay'), 'click', (e) => this._onOverlayClick(e));
     this.on(this.$('#overlay'), 'change', (e) => this._onOverlayChange(e));
@@ -743,6 +840,8 @@ export class InvitadosView extends AppElement {
 
   /** @param {MouseEvent} e */
   _onListClick(e) {
+    const det = e.target.closest('[data-detalle]');
+    if (det) { this._openDetalle(det.dataset.detalle); return; }
     const rm = e.target.closest('[data-remove]');
     if (rm) { this._removeInvitado(rm.dataset.remove); return; }
     const next = e.target.closest('[data-nextinv]');

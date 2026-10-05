@@ -22,8 +22,6 @@ export const styles = css`
 .inv-board-hero .inv-hero-legend { flex-direction: column; gap: 6px; }
 @media (max-width: 820px) {
   .inv-board { grid-template-columns: 1fr; }
-  .inv-board-hero .inv-hero-body { min-width: 220px; }
-  .inv-board-hero .inv-hero-legend { flex-direction: row; }
 }
 
 /* ---------- Stats (KPIs como mini-tarjetas compactas, centradas junto al donut) ---------- */
@@ -82,6 +80,17 @@ export const styles = css`
 .inv-search { flex: 1; min-width: 220px; }
 .inv-view-toggle { margin-bottom: 1px; }
 .inv-add { margin-left: auto; }
+/* En móvil: rejilla ordenada — buscador a ancho completo, selects en 2 columnas,
+   el toggle rellena el hueco junto a Menú, y Añadir invitado a lo ancho. */
+@media (max-width: 760px) {
+  .inv-filtros { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-4); align-items: end; }
+  .inv-filtros .field { min-width: 0; }
+  .inv-filtros .field .input { width: 100%; }
+  .inv-search { grid-column: 1 / -1; min-width: 0; }
+  .inv-view-toggle { width: 100%; margin-bottom: 0; }
+  .inv-view-toggle .seg-opt { flex: 1; }
+  .inv-add { grid-column: 1 / -1; margin-left: 0; }
+}
 
 /* ---------- Chips de filtros activos ---------- */
 #chips:empty { display: none; }
@@ -317,11 +326,42 @@ table.inv-table { width: 100%; min-width: 820px; border-collapse: collapse; font
 /* ---------- Vacío y pie ---------- */
 #empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 #empty:empty { display: none; }
-.inv-foot { padding: var(--space-4) 0 var(--space-8); }
 
 /* ---------- Alta de invitado (dentro de modal-dialog) ---------- */
 .inv-add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); padding: var(--space-4) 0; }
 .inv-add-span2 { grid-column: span 2; }
 .inv-add-foot { display: flex; gap: var(--space-2); align-items: center; border-top: 2px solid var(--color-divider); padding-top: var(--space-3); }
 .inv-add-foot button { margin-left: auto; }
+
+/* ---------- Listado compacto en móvil (tabla → lista + modal de detalle) ---------- */
+.inv-mlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.inv-mitem {
+  width: 100%; display: flex; align-items: center; gap: var(--space-3); text-align: left; cursor: pointer;
+  padding: 10px var(--space-4); border: 1px solid var(--color-divider); border-radius: 14px;
+  background: var(--color-surface); color: var(--color-text); font: inherit;
+}
+.inv-mitem:hover { border-color: var(--color-accent-300); }
+.inv-mitem:active { background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface)); }
+.inv-mitem[data-rsvp="confirmado"] .inv-avatar-status { background: var(--rsvp-si-dot); }
+.inv-mitem[data-rsvp="pendiente"] .inv-avatar-status { background: var(--rsvp-pend-dot); }
+.inv-mitem[data-rsvp="no"] .inv-avatar-status { background: var(--rsvp-no-dot); }
+.inv-mitem-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.inv-mitem-name { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-mitem-sub { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-mitem-chev { flex: 0 0 auto; color: var(--color-neutral-600); font-size: 20px; line-height: 1; }
+
+/* Modal de detalle del invitado */
+.inv-det { display: flex; flex-direction: column; gap: var(--space-4); }
+.inv-det-head { display: flex; align-items: center; gap: var(--space-3); }
+.inv-det-head .inv-avatar { width: 46px; height: 46px; font-size: 15px; }
+.inv-det-id { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.inv-det-name { font-family: var(--font-heading); font-size: 20px; line-height: 1.1; }
+.inv-det-rows { margin: 0; display: flex; flex-direction: column; }
+.inv-det-row { display: flex; gap: var(--space-4); align-items: baseline; padding: 9px 0; border-top: 1px solid var(--color-divider); }
+.inv-det-row dt { flex: 0 0 34%; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-neutral-700); margin: 0; }
+.inv-det-row dd { flex: 1 1 auto; margin: 0; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.inv-det-rsvp { border-top: 1px solid var(--color-divider); padding-top: var(--space-3); }
+.inv-det-rsvp .input { width: 100%; }
+.inv-det-acts { display: flex; }
+.inv-det-acts button { margin-left: auto; }
 `;
