@@ -19,8 +19,6 @@ export const styles = css`
 .prov-dash-hero .prov-hero-legend { flex-direction: column; gap: 6px; }
 @media (max-width: 820px) {
   .prov-dash { grid-template-columns: 1fr; }
-  .prov-dash-hero .prov-hero-body { min-width: 220px; }
-  .prov-dash-hero .prov-hero-legend { flex-direction: row; }
 }
 
 /* ---------- Stats (KPIs como mini-tarjetas compactas, centradas junto al donut) ---------- */
@@ -238,7 +236,6 @@ export const styles = css`
 
 /* ---------- Vacío y pie ---------- */
 #empty { padding: 0 0 var(--space-4); }
-.prov-foot { padding: var(--space-4) 0 var(--space-8); }
 
 /* ---------- Formulario de alta/edición (dentro de modal-dialog) ---------- */
 .prov-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); padding: var(--space-4) 0; }

@@ -118,7 +118,6 @@ export class ProveedoresView extends AppElement {
           <segmented-tabs id="pf-vista"></segmented-tabs>
         </div>
         <div id="listing">${this._listingTpl}</div>
-        <p class="prov-foot muted">${escapeHtml(t('prov.foot'))}</p>
         <div id="overlay">${this._overlayTpl}</div>
         <div id="compare">${this._compareTpl}</div>
         <div id="estado-pop" class="prov-estado-pop" role="menu" hidden></div>
