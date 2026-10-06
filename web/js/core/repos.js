@@ -1,16 +1,23 @@
-import { getGroup, get, set, setGroup } from './store.js';
+import { getGroup, get, set, setGroup, removeItem } from './store.js';
 import { SEED } from './seed.js';
 
-/** @returns {string} Id corto y único. */
-function newId(prefix) { return prefix + Math.random().toString(36).slice(2, 8); }
+/**
+ * Id único. Usa UUID (crypto.randomUUID) para que los ids nuevos sean
+ * compatibles con las claves primarias de la base de datos (Supabase).
+ * @returns {string}
+ */
+function newId() {
+  return (globalThis.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'x' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
 
 /**
  * Crea un repositorio de colección sobre un grupo del store. Los items se
  * guardan por id dentro del grupo.
  * @param {string} group Clave del grupo en el store.
- * @param {string} prefix Prefijo para ids nuevos.
  */
-function collection(group, prefix) {
+function collection(group) {
   return {
     /** @returns {object[]} Todos los items del grupo. */
     list() { return Object.values(getGroup(group)); },
@@ -23,32 +30,33 @@ function collection(group, prefix) {
      */
     upsert(entity) {
       const item = { ...entity };
-      if (!item.id) item.id = newId(prefix);
+      if (!item.id) item.id = newId();
       set(group, item.id, item);
       return item;
     },
     /** @param {string} id */
-    remove(id) {
-      const bag = { ...getGroup(group) };
-      delete bag[id];
-      setGroup(group, bag);
-    },
+    remove(id) { removeItem(group, id); },
   };
 }
+
+/** Modo remoto: cuando está activo, ensureSeeded() no siembra el mock local. */
+let remoteMode = false;
+/** @param {boolean} on */
+export function setRemoteMode(on) { remoteMode = on; }
 
 /** @returns {string[]} Las categorías de proveedor del seed. */
 export function listaCategorias() { return SEED.categorias; }
 
-export const fincasRepo = collection('fincas', 'f');
-export const invitadosRepo = collection('invitados', 'g');
-export const proveedoresRepo = collection('proveedores', 'p');
-export const mesasRepo = collection('mesas', 'm');
-/** Reglas de convivencia del salón: `{ id, tipo:'juntos'|'separados', a, b }`. */
-export const reglasRepo = collection('reglas', 'r');
-/** Zonas del plano del salón: `{ id, tipo, x, y, w, h, rot }` (x,y en %; w,h en px). */
-export const zonasRepo = collection('zonas', 'z');
+export const fincasRepo = collection('fincas');
+export const invitadosRepo = collection('invitados');
+export const proveedoresRepo = collection('proveedores');
+export const mesasRepo = collection('mesas');
+/** Reglas de convivencia del salón: `{ id, tipo:'juntos'|'separados', a, b }`. (local) */
+export const reglasRepo = collection('reglas');
+/** Zonas del plano del salón: `{ id, tipo, x, y, w, h, rot }` (x,y en %; w,h en px). (local) */
+export const zonasRepo = collection('zonas');
 /** Momentos del guion del día (Timing): `{ id, orden, bloque, titulo, inicio, dur, lugar, prov, nota }`. */
-export const timingRepo = collection('timing', 't');
+export const timingRepo = collection('timing');
 /** Ajustes del salón: imagen de fondo del plano (data URL). */
 export const salonRepo = {
   getBg() { return get('salon', 'bg', { url: '' }).url || ''; },
@@ -68,8 +76,10 @@ export const configRepo = {
   set(patch) { set('config', 'main', { ...this.get(), ...patch }); },
 };
 
-/** Siembra los datos del prototipo la primera vez (grupos vacíos). */
+/** Siembra los datos del prototipo la primera vez (grupos vacíos). No hace nada
+ *  en modo remoto: ahí los datos llegan de Supabase (ver remote.js). */
 export function ensureSeeded() {
+  if (remoteMode) return;
   if (!fincasRepo.list().length) {
     const byId = {};
     SEED.fincas.forEach((f) => { byId[f.id] = f; });

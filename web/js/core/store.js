@@ -51,7 +51,19 @@ export function set(group, id, value) {
   if (!state[group]) state[group] = {};
   state[group][id] = value;
   save();
-  window.dispatchEvent(new CustomEvent('store:changed', { detail: { group, id, value } }));
+  window.dispatchEvent(new CustomEvent('store:changed', { detail: { group, id, value, op: 'set' } }));
+}
+
+/**
+ * Borra un item concreto de un grupo (conservando su id en el evento, útil
+ * para la sincronización remota).
+ * @param {keyof EMPTY} group
+ * @param {string} id
+ */
+export function removeItem(group, id) {
+  if (state[group]) delete state[group][id];
+  save();
+  window.dispatchEvent(new CustomEvent('store:changed', { detail: { group, id, value: null, op: 'remove' } }));
 }
 
 /**
