@@ -64,7 +64,8 @@ export const styles = css`
   font-size: clamp(52px, 6.4vw, 88px); color: var(--color-accent-700);
   font-variant-numeric: tabular-nums; letter-spacing: -.03em;
 }
-.home-count-lbl { margin-top: 9px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-accent-700); font-weight: 600; }
+.home-count-side { display: flex; flex-direction: column; align-items: flex-end; margin-top: 9px; }
+.home-count-lbl { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-accent-700); font-weight: 600; }
 .home-count-date { margin-top: 4px; font-size: 13px; color: var(--color-neutral-700); }
 .home-count.is-hoy { align-items: flex-end; }
 .home-count-hoy { font-family: var(--font-heading); font-weight: 600; font-size: clamp(30px, 4vw, 44px); color: var(--color-accent-700); line-height: 1; }
@@ -98,7 +99,10 @@ export const styles = css`
 /* Cada tarjeta expone su color de sección en --c (base) y --c7 (texto/énfasis). */
 .home-card {
   --c: var(--color-accent); --c7: var(--color-accent-700);
-  position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 12px;
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: auto 1fr;
+  grid-template-areas: "ic body" ". met" ". foot";
+  column-gap: 16px; row-gap: 14px; align-items: start;
   padding: var(--space-5);
   border-radius: 22px; text-decoration: none; color: inherit;
   background:
@@ -121,16 +125,16 @@ export const styles = css`
 }
 .home-card-wm svg { width: 100%; height: 100%; stroke-width: 1; }
 .home-card:hover .home-card-wm, .home-card:focus-visible .home-card-wm { opacity: .08; transform: rotate(-6deg) scale(1.05); }
-.home-card > *:not(.home-card-wm) { position: relative; z-index: 1; }
+.home-card > *:not(.home-card-wm):not(.home-card-go) { position: relative; z-index: 1; }
 
-.home-card-top { display: flex; align-items: center; justify-content: space-between; }
 .home-card-ic {
-  display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px;
+  grid-area: ic; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; flex: none;
   border-radius: 13px; background: color-mix(in srgb, var(--c) 14%, var(--color-surface)); color: var(--c7);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 18%, transparent);
 }
 .home-card-ic svg { width: 23px; height: 23px; }
 .home-card-go {
+  position: absolute; top: var(--space-5); right: var(--space-5); z-index: 2;
   display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
   border-radius: 50%; border: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent); color: var(--color-neutral-600);
   transition: transform .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
@@ -140,16 +144,16 @@ export const styles = css`
   background: var(--c); border-color: var(--c); color: var(--color-surface); transform: translateX(3px);
 }
 
-.home-card-body { display: flex; flex-direction: column; gap: 4px; }
-.home-card-title { font-family: var(--font-heading); font-weight: 600; font-size: 23px; line-height: 1.05; letter-spacing: -.01em; color: var(--color-text); }
-.home-card-desc { font-size: 13px; color: var(--color-neutral-600); line-height: 1.4; }
+.home-card-body { grid-area: body; display: flex; flex-direction: column; gap: 4px; padding-top: 4px; padding-right: 40px; }
+.home-card-title { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 24px; line-height: 1.05; letter-spacing: -.01em; color: var(--color-text); }
+.home-card-desc { margin: 0; font-size: 13px; color: var(--color-neutral-600); line-height: 1.4; }
 
 /* ----- Métrica: número grande (protagonista) + mini-viz de apoyo ----- */
 /* min-height iguala la fila entre donut (más alto) y barras/estrellas → sin vacíos. */
-.home-card-metric { margin-top: 2px; min-height: 60px; display: flex; align-items: center; gap: 16px; }
-.home-metric-num { display: flex; flex-direction: column; gap: 2px; flex: none; }
+.home-card-metric { grid-area: met; min-height: 60px; display: flex; align-items: center; gap: 16px; }
+.home-metric-num { display: flex; flex-direction: column; gap: 6px; flex: none; }
 .home-metric-num .n {
-  font-family: var(--font-heading); font-weight: 600; font-size: 38px; line-height: .9;
+  font-family: var(--font-heading); font-weight: 600; font-size: 38px; line-height: .95;
   color: var(--c7); font-variant-numeric: tabular-nums; letter-spacing: -.015em;
 }
 .home-metric-num .u { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-600); }
@@ -176,9 +180,9 @@ export const styles = css`
 .home-star svg { width: 100%; height: 100%; fill: currentColor; }
 .home-star.is-full { color: var(--color-gold); }
 
-/* ----- Pie: metadatos con filete separador (anclado abajo) ----- */
+/* ----- Pie: metadatos con filete separador ----- */
 .home-card-foot {
-  margin-top: auto; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  grid-area: foot; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
   font-size: 12px; letter-spacing: .01em; color: var(--color-neutral-600);
 }
 .home-card-foot b { color: var(--color-text); font-variant-numeric: tabular-nums; }
@@ -199,10 +203,41 @@ export const styles = css`
 
 @media (max-width: 760px) {
   .home { padding-top: var(--space-4); gap: var(--space-5); }
-  .home-hero { border-radius: 20px; grid-template-columns: 1fr; grid-template-areas: "main" "aside" "ribbon"; row-gap: 18px; }
-  .home-hero-aside { justify-self: start; }
-  .home-count { align-items: flex-start; text-align: left; }
-  .home-hero-rings { width: 180px; top: -28px; right: -26px; }
+  .home-hero { border-radius: 20px; grid-template-columns: 1fr; grid-template-areas: "main" "aside" "ribbon"; row-gap: 12px; padding: clamp(20px, 5vw, 28px); }
+  .home-title { font-size: clamp(30px, 8.5vw, 40px); }
+  .home-hero-actions { margin-top: 14px; }
+  /* Cuenta atrás horizontal y compacta */
+  .home-hero-aside { justify-self: start; align-self: start; min-height: 0; }
+  .home-count { flex-direction: row; align-items: center; text-align: left; gap: 12px; }
+  .home-count-num { font-size: clamp(44px, 13vw, 58px); }
+  .home-count-side { margin-top: 0; align-items: flex-start; }
+  .home-hero-rings { width: 132px; top: -24px; right: -20px; }
+  .home-hero-ribbon { gap: 6px 10px; padding-top: 14px; }
+  .home-rib-item { font-size: 10.5px; letter-spacing: .07em; }
+}
+/* Móvil (1 columna): datos reestructurados — icono junto al título, más compacto. */
+@media (max-width: 620px) {
+  .home-grid { gap: var(--space-3); }
+  .home-card {
+    display: grid; grid-template-columns: auto 1fr;
+    grid-template-areas: "ic body" ". met" ". foot";
+    column-gap: 13px; row-gap: 11px; align-items: start;
+    padding: var(--space-4); border-radius: 18px; min-width: 0;
+  }
+  .home-card-ic { grid-area: ic; width: 42px; height: 42px; border-radius: 11px; }
+  .home-card-ic svg { width: 21px; height: 21px; }
+  .home-card-body { grid-area: body; gap: 4px; padding-right: 34px; } /* deja aire para la flecha */
+  .home-card-title { font-size: 21px; }
+  .home-card-desc { font-size: 12.5px; }
+  .home-card-metric { grid-area: met; min-height: 0; margin-top: 0; gap: 14px; align-items: center; }
+  .home-metric-num .n { font-size: 30px; }
+  .home-metric-num .u { font-size: 10px; }
+  .home-mini-donut, .home-mini-donut svg { width: 46px; height: 46px; }
+  .home-star { width: 17px; height: 17px; }
+  .home-card-foot { grid-area: foot; margin-top: 0; padding-top: 11px; font-size: 11.5px; }
+  .home-card-go { top: var(--space-4); right: var(--space-4); width: 30px; height: 30px; }
+  .home-card-go svg { width: 15px; height: 15px; }
+  .home-card-wm { width: 104px; right: -18px; bottom: -22px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-hero, .home-card { animation: none; }
