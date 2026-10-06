@@ -15,7 +15,7 @@ export const styles = css`
 
 /* ---------- Cabecera tipo dashboard: hero (donut) + KPIs lado a lado ---------- */
 /* padding-top compensa el nav sticky (antes lo hacía .page-head, ya retirado). */
-.inv-board { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: var(--space-4); align-items: stretch; padding-top: var(--space-6); }
+.inv-board { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: var(--space-4); align-items: stretch; padding-top: var(--space-6); }
 .inv-board-hero, .inv-board-stats { min-width: 0; }
 .inv-board-hero .inv-hero { height: 100%; margin-bottom: 0; gap: var(--space-4); }
 .inv-board-hero .inv-hero-body { min-width: 130px; }
@@ -26,10 +26,13 @@ export const styles = css`
 
 /* ---------- Stats (KPIs como mini-tarjetas compactas, centradas junto al donut) ---------- */
 .inv-board-stats { display: flex; align-items: center; }
+/* Rejilla fija de 4 columnas → con 7 KPIs quedan 4 arriba y 3 abajo. */
 .inv-stats-row {
-  width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
 }
+@media (max-width: 1024px) { .inv-stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .inv-stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .inv-stat {
   padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-divider);
   border-radius: 14px; display: flex; flex-direction: column; gap: 2px;
@@ -45,16 +48,16 @@ export const styles = css`
   background: var(--color-surface); border: 1px solid var(--color-divider);
   border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
 }
-.inv-hero-ring { position: relative; flex: none; width: 128px; height: 128px; }
-.inv-donut { width: 128px; height: 128px; }
+.inv-hero-ring { position: relative; flex: none; width: 164px; height: 164px; }
+.inv-donut { width: 164px; height: 164px; }
 .inv-donut-track { stroke: color-mix(in srgb, var(--color-text) 9%, transparent); }
 .inv-donut-arc { transform-origin: 64px 64px; transition: stroke-dashoffset 1s cubic-bezier(.22,.61,.36,1); }
 .inv-donut-arc.is-si { stroke: var(--rsvp-si-dot); }
 .inv-donut-arc.is-pend { stroke: var(--color-accent); }
 .inv-donut-arc.is-no { stroke: color-mix(in srgb, var(--color-text) 34%, transparent); }
 .inv-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
-.inv-donut-pct { font-family: var(--font-heading); font-weight: 600; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
-.inv-donut-lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.inv-donut-pct { font-family: var(--font-heading); font-weight: 600; font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; }
+.inv-donut-lbl { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 .inv-hero-body { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: var(--space-4); }
 .inv-hero-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .inv-leg { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--color-neutral-700); }
