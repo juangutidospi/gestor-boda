@@ -158,10 +158,12 @@ async function boot() {
   try {
     const session = await getSession();
     if (session) await enter();
-    // Reacciona a login/logout en vivo.
+    // Reacciona a login/logout en vivo. Importante: onAuthChange emite un evento
+    // inicial con sesión nula; solo recargamos ante un cierre de sesión REAL
+    // (cuando la app ya estaba arrancada), nunca en ese evento inicial.
     onAuthChange((s) => {
       if (s) { if (!appStarted) enter(); }
-      else { appStarted = false; location.reload(); } // al salir, reinicia limpio
+      else if (appStarted) { appStarted = false; location.reload(); }
     });
   } catch (e) {
     console.error('[auth] no se pudo iniciar Supabase:', e);
