@@ -75,7 +75,19 @@ export class SalonView extends AppElement {
   connectedCallback() {
     super.connectedCallback();
     this.on(window, 'keydown', this._onKey);
+    // En móvil el plano no tiene sentido: se fuerza "Listado" y se repinta al cruzar el umbral.
+    this._mq = window.matchMedia('(max-width: 760px)');
+    this._onMq = () => { if (this._esMovil && this._vista !== 'listado') { this._vista = 'listado'; this._paint(); } };
+    this._mq.addEventListener('change', this._onMq);
   }
+
+  disconnectedCallback() {
+    this._mq?.removeEventListener('change', this._onMq);
+    super.disconnectedCallback();
+  }
+
+  /** @returns {boolean} ¿Pantalla de móvil/tablet pequeña? (solo listado). */
+  get _esMovil() { return !!this._mq?.matches; }
 
   /**
    * Atajos (solo si la vista es visible): "/" buscar, +/− zoom, Esc deselecciona; con una
@@ -141,6 +153,7 @@ export class SalonView extends AppElement {
     this._reglas = reglasRepo.list();
     this._zonas = zonasRepo.list();
     this._bg = salonRepo.getBg();
+    if (this._esMovil) this._vista = 'listado';
     this._paint();
   }
 

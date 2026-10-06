@@ -10,13 +10,27 @@ export const styles = css`
 
 .page-head { padding-top: var(--space-6); }
 
-/* ---------- Stats ---------- */
-.prov-stats-row {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider);
+/* ---------- Cabecera tipo dashboard: hero (donut) + KPIs lado a lado ---------- */
+/* padding-top compensa el nav sticky (antes lo hacía .page-head, ya retirado). */
+.prov-dash { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: var(--space-4); align-items: stretch; padding-top: var(--space-6); }
+.prov-dash-hero, .prov-dash-stats { min-width: 0; }
+.prov-dash-hero .prov-hero { height: 100%; margin-bottom: 0; }
+.prov-dash-hero .prov-hero-body { min-width: 130px; }
+.prov-dash-hero .prov-hero-legend { flex-direction: column; gap: 6px; }
+@media (max-width: 820px) {
+  .prov-dash { grid-template-columns: 1fr; }
 }
-.prov-stat { padding: var(--space-4); border-left: 1px solid var(--color-divider); }
-.prov-stat:first-child { border-left: 0; }
+
+/* ---------- Stats (KPIs como mini-tarjetas compactas, centradas junto al donut) ---------- */
+.prov-dash-stats { display: flex; align-items: center; }
+.prov-stats-row {
+  width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  gap: var(--space-3);
+}
+.prov-stat {
+  padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-divider);
+  border-radius: 14px; display: flex; flex-direction: column; gap: 2px;
+}
 .prov-stat-label { display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); }
 .prov-stat-value { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 30px; line-height: 1.1; margin-top: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .prov-stat-note { display: block; }
@@ -105,7 +119,7 @@ export const styles = css`
 .prov-chip.is-vacia { border-color: var(--color-divider); color: var(--color-neutral-700); }
 
 /* ---------- Rejilla y tarjeta ---------- */
-.prov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.prov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px; }
 
 .prov-card {
   display: flex; flex-direction: column; gap: 10px;
@@ -120,10 +134,13 @@ export const styles = css`
 .prov-card[data-estado="descartado"] { opacity: .72; }
 .prov-card[data-estado="descartado"]:hover { opacity: 1; }
 .prov-card-top { display: flex; align-items: flex-start; gap: var(--space-2); }
-.prov-card-id { display: flex; flex-direction: column; gap: 1px; }
-.prov-card-cat { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-accent-700); }
-.prov-card-id h3 { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 22px; line-height: 1.15; }
-.prov-card-contacto { font-size: 12px; }
+/* El id ocupa el ancho restante y su mínimo es 0 para que el nombre no rompa palabra a palabra. */
+.prov-card-id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* Categoría y badges comparten la primera línea; el nombre ocupa el ancho completo debajo. */
+.prov-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 22px; }
+.prov-card-cat { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-accent-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prov-card-id h3 { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 19px; line-height: 1.2; overflow-wrap: anywhere; }
+.prov-card-contacto { font-size: 12px; overflow-wrap: anywhere; }
 .prov-card-top .prov-badge-btn {
   margin-left: auto; flex: 0 0 auto; display: inline-flex; padding: 2px; border: 0;
   background: none; cursor: pointer; border-radius: 999px; transition: box-shadow .14s ease;
@@ -198,11 +215,11 @@ export const styles = css`
 }
 .prov-card-panel {
   display: flex; align-items: baseline; gap: var(--space-3);
-  background: var(--color-accent-100); border-radius: 12px; padding: 10px 12px;
+  background: var(--color-accent-100); border-radius: 12px; padding: var(--space-3) var(--space-4);
 }
 .prov-card-panel .prov-sep { margin-left: auto; text-align: right; }
 .prov-lbl { display: block; font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-neutral-700); }
-.prov-val { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 22px; font-variant-numeric: tabular-nums; }
+.prov-val { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 21px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .prov-val-sm { font-size: 16px; }
 .prov-card-notas { margin: 0; font-size: 13px; }
 .prov-card-foot {
@@ -219,7 +236,6 @@ export const styles = css`
 
 /* ---------- Vacío y pie ---------- */
 #empty { padding: 0 0 var(--space-4); }
-.prov-foot { padding: var(--space-4) 0 var(--space-8); }
 
 /* ---------- Formulario de alta/edición (dentro de modal-dialog) ---------- */
 .prov-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); padding: var(--space-4) 0; }

@@ -182,6 +182,7 @@ export default {
   'inv.table.invitacion': 'Invitación',
   'inv.table.acomp': 'Acomp.',
   'inv.table.mesa': 'Mesa',
+  'inv.detalle.nota': 'Nota',
   'inv.table.confirmacion': 'Confirmación',
   'inv.grupo.subtotal': '{inv} invitaciones · {pax} personas · {conf} confirmadas',
   'inv.card.con': 'Con',
