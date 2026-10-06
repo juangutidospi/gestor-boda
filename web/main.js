@@ -10,6 +10,7 @@ import { t, setLang, getLang } from './js/i18n/index.js';
 import { configRepo, ensureSeeded } from './js/core/repos.js';
 import { escapeHtml } from './js/core/escape-html.js';
 import { isConfigured, getSession, onAuthChange, signOut } from './js/core/auth.js';
+import { hydrate } from './js/core/remote.js';
 
 /** Envuelve el `<path>` de un icono en un SVG de trazo (hereda el color del texto). */
 const svg = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
@@ -142,11 +143,20 @@ document.getElementById('logout')?.addEventListener('click', async () => { await
 async function boot() {
   if (!isConfigured()) { startApp(); return; } // modo local
   const logoutBtn = document.getElementById('logout');
+
+  /** Hidrata desde Supabase (si procede) y arranca la app con sesión. */
+  async function enter() {
+    showLogin(false);
+    if (logoutBtn) logoutBtn.hidden = false;
+    try { await hydrate(); } catch (e) { console.warn('[remote] hidratación fallida:', e.message || e); }
+    startApp();
+  }
+
   const session = await getSession();
-  if (session) { showLogin(false); if (logoutBtn) logoutBtn.hidden = false; startApp(); } else { showLogin(true); }
+  if (session) await enter(); else showLogin(true);
   // Reacciona a login/logout en vivo.
   onAuthChange((s) => {
-    if (s) { showLogin(false); if (logoutBtn) logoutBtn.hidden = false; startApp(); }
+    if (s) { if (!appStarted) enter(); }
     else { appStarted = false; location.reload(); } // al salir, reinicia limpio
   });
 }
