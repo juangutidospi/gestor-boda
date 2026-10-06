@@ -12,7 +12,7 @@ export const styles = css`
 
 /* ---------- Cabecera tipo dashboard: hero (donut) + KPIs lado a lado ---------- */
 /* padding-top compensa el nav sticky (antes lo hacía .page-head, ya retirado). */
-.prov-dash { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: var(--space-4); align-items: stretch; padding-top: var(--space-6); }
+.prov-dash { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: var(--space-4); align-items: stretch; padding-top: var(--space-6); }
 .prov-dash-hero, .prov-dash-stats { min-width: 0; }
 .prov-dash-hero .prov-hero { height: 100%; margin-bottom: 0; }
 .prov-dash-hero .prov-hero-body { min-width: 130px; }
@@ -23,10 +23,12 @@ export const styles = css`
 
 /* ---------- Stats (KPIs como mini-tarjetas compactas, centradas junto al donut) ---------- */
 .prov-dash-stats { display: flex; align-items: center; }
+/* Rejilla fija de 2 columnas → con 4 KPIs quedan 2 arriba y 2 abajo. */
 .prov-stats-row {
-  width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
 }
+@media (max-width: 620px) { .prov-stats-row { grid-template-columns: 1fr; } }
 .prov-stat {
   padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-divider);
   border-radius: 14px; display: flex; flex-direction: column; gap: 2px;
@@ -43,16 +45,16 @@ export const styles = css`
   background: var(--color-surface); border: 1px solid var(--color-divider);
   border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
 }
-.prov-hero-ring { position: relative; flex: none; width: 128px; height: 128px; }
-.prov-donut { width: 128px; height: 128px; }
+.prov-hero-ring { position: relative; flex: none; width: 164px; height: 164px; }
+.prov-donut { width: 164px; height: 164px; }
 .prov-donut-track { stroke: color-mix(in srgb, var(--color-text) 9%, transparent); }
 .prov-donut-arc { transform-origin: 64px 64px; transition: stroke-dashoffset 1s cubic-bezier(.22,.61,.36,1); }
 .prov-donut-arc.is-cub { stroke: var(--rsvp-si-dot); }
 .prov-donut-arc.is-marcha { stroke: var(--color-accent); }
 .prov-donut-arc.is-vacia { stroke: color-mix(in srgb, var(--color-text) 22%, transparent); }
 .prov-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
-.prov-donut-num { font-family: var(--font-heading); font-weight: 600; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
-.prov-donut-lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.prov-donut-num { font-family: var(--font-heading); font-weight: 600; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.prov-donut-lbl { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 .prov-hero-body { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: var(--space-4); }
 .prov-hero-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .prov-leg { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--color-neutral-700); }
