@@ -22,6 +22,8 @@
   --color-secondary: #6b7f5b;      /* salvia */
   --color-secondary-700: #55663f;
   --color-tertiary: #d9c9b2;       /* arena */
+  --color-gold: #b98a36;           /* oro/mostaza (legible sobre crema) */
+  --color-gold-700: #8f6a24;
 
   /* Derivados (valen para ambos temas con color-mix) */
   --color-text-muted: color-mix(in srgb, var(--color-text) 48%, transparent);
@@ -74,6 +76,8 @@
   --color-secondary: #9fb488;
   --color-secondary-700: #7f966a;
   --color-tertiary: #d9c9b2;
+  --color-gold: #cda14c;           /* oro/mostaza (legible sobre oscuro) */
+  --color-gold-700: #ddb968;
   --shadow-sm: 0 0 0 1px color-mix(in srgb, var(--color-text) 16%, transparent);
   --shadow-md: 0 0 0 1px color-mix(in srgb, var(--color-text) 20%, transparent), 0 6px 18px rgb(0 0 0 / .5);
   --shadow-lg: 0 0 0 1px color-mix(in srgb, var(--color-text) 28%, transparent), 0 16px 40px rgb(0 0 0 / .6);
