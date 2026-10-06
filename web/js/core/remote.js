@@ -119,8 +119,8 @@ export async function hydrate() {
   setRemoteMode(true);
 
   // 1) Cabecera de la boda → config / presupuesto / salón.
-  const { data: wed } = await sb.from('weddings').select('*').eq('id', activeWeddingId).single();
-  const { data: prof } = await sb.from('profiles').select('lang,theme').eq('id', userId).single();
+  const { data: wed } = await sb.from('weddings').select('*').eq('id', activeWeddingId).maybeSingle();
+  const { data: prof } = await sb.from('profiles').select('lang,theme').eq('id', userId).maybeSingle();
   if (wed) {
     storeSet('config', 'main', {
       guestCount: wed.guest_count ?? 0,

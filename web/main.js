@@ -152,13 +152,20 @@ async function boot() {
     startApp();
   }
 
-  const session = await getSession();
-  if (session) await enter(); else showLogin(true);
-  // Reacciona a login/logout en vivo.
-  onAuthChange((s) => {
-    if (s) { if (!appStarted) enter(); }
-    else { appStarted = false; location.reload(); } // al salir, reinicia limpio
-  });
+  // Muestra el login de inmediato (no depende de la red); si ya hay sesión,
+  // enter() lo oculta. Así un fallo/lentitud del SDK nunca deja la página en blanco.
+  showLogin(true);
+  try {
+    const session = await getSession();
+    if (session) await enter();
+    // Reacciona a login/logout en vivo.
+    onAuthChange((s) => {
+      if (s) { if (!appStarted) enter(); }
+      else { appStarted = false; location.reload(); } // al salir, reinicia limpio
+    });
+  } catch (e) {
+    console.error('[auth] no se pudo iniciar Supabase:', e);
+  }
 }
 
 boot();
