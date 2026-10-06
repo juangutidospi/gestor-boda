@@ -56,6 +56,7 @@ function setActiveView(id) {
   else fillSoon(el); // vistas no-Finca: placeholder "próximamente"
   if (location.hash.slice(1) !== known) history.replaceState(null, '', `#${known}`);
   closeMenu(); // cierra el menú móvil tras navegar
+  window.scrollTo(0, 0); // al entrar en una sección, el scroll arriba
 }
 
 /** Cierra el menú hamburguesa (móvil). */
