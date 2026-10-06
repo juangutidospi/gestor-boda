@@ -5,9 +5,11 @@ import './js/components/views/proveedores-view/proveedores-view.js';
 import './js/components/views/presupuesto-view/presupuesto-view.js';
 import './js/components/views/salon-view/salon-view.js';
 import './js/components/views/timing-view/timing-view.js';
+import './js/components/views/login-view/login-view.js';
 import { t, setLang, getLang } from './js/i18n/index.js';
 import { configRepo, ensureSeeded } from './js/core/repos.js';
 import { escapeHtml } from './js/core/escape-html.js';
+import { isConfigured, getSession, onAuthChange, signOut } from './js/core/auth.js';
 
 /** Envuelve el `<path>` de un icono en un SVG de trazo (hereda el color del texto). */
 const svg = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
@@ -104,16 +106,49 @@ document.getElementById('lang').addEventListener('click', () => {
 // Al cambiar idioma, repintar el chrome y el nav, y sincronizar <html lang>
 window.addEventListener('i18n:changed', () => { document.documentElement.lang = getLang(); paintChrome(); paintNav(); });
 
-// Arranque: sembrar datos de ejemplo antes de nada que pueda leerlos
-ensureSeeded();
+/** Muestra u oculta la pantalla de acceso; conmuta la visibilidad del chrome+main. */
+function showLogin(show) {
+  const login = document.getElementById('login');
+  const nav = document.querySelector('.nav');
+  const main = document.querySelector('main.content');
+  if (login) login.hidden = !show;
+  if (nav) nav.style.display = show ? 'none' : '';
+  if (main) main.style.display = show ? 'none' : '';
+}
 
-// Arranque: tema e idioma recordados en configRepo (única fuente de verdad)
-const cfg = configRepo.get();
-if (cfg.theme) applyTheme(cfg.theme);
-if (cfg.lang && cfg.lang !== getLang()) setLang(cfg.lang);
-document.documentElement.lang = getLang();
+/** Arranca la app (tema/idioma, chrome, vista inicial). Idempotente. */
+let appStarted = false;
+function startApp() {
+  if (appStarted) return;
+  appStarted = true;
+  ensureSeeded();
+  const cfg = configRepo.get();
+  if (cfg.theme) applyTheme(cfg.theme);
+  if (cfg.lang && cfg.lang !== getLang()) setLang(cfg.lang);
+  document.documentElement.lang = getLang();
+  paintChrome();
+  paintNav();
+  setActiveView(location.hash.slice(1) || 'view-home');
+  window.addEventListener('hashchange', () => setActiveView(location.hash.slice(1) || 'view-home'));
+}
 
-paintChrome();
-paintNav();
-setActiveView(location.hash.slice(1) || 'view-home');
-window.addEventListener('hashchange', () => setActiveView(location.hash.slice(1) || 'view-home'));
+// Botón de salir (visible solo con sesión activa)
+document.getElementById('logout')?.addEventListener('click', async () => { await signOut(); });
+
+/**
+ * Arranque con gate de autenticación. Sin Supabase configurado, la app corre en
+ * modo local (como siempre). Con Supabase, exige sesión antes de mostrarla.
+ */
+async function boot() {
+  if (!isConfigured()) { startApp(); return; } // modo local
+  const logoutBtn = document.getElementById('logout');
+  const session = await getSession();
+  if (session) { showLogin(false); if (logoutBtn) logoutBtn.hidden = false; startApp(); } else { showLogin(true); }
+  // Reacciona a login/logout en vivo.
+  onAuthChange((s) => {
+    if (s) { showLogin(false); if (logoutBtn) logoutBtn.hidden = false; startApp(); }
+    else { appStarted = false; location.reload(); } // al salir, reinicia limpio
+  });
+}
+
+boot();

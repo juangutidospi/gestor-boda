@@ -1,0 +1,12 @@
+{
+  "name": "gestor-boda-seed",
+  "private": true,
+  "type": "module",
+  "description": "Seeder de demo para Supabase (crea usuarios y una boda con datos mock).",
+  "scripts": {
+    "seed": "node seed_demo.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
