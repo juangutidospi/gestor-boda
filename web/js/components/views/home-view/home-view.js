@@ -118,15 +118,17 @@ export class HomeView extends AppElement {
     const fecha = this._fechaLarga(iso);
     if (dias === 0) {
       return `<div class="home-count is-hoy"><span class="home-count-hoy">${escapeHtml(t('home.count.hoy'))}</span>
-        <span class="home-count-date">${escapeHtml(fecha)}</span></div>`;
+        <div class="home-count-side"><span class="home-count-date">${escapeHtml(fecha)}</span></div></div>`;
     }
     const n = Math.abs(dias);
     const lbl = dias > 0 ? t('home.count.faltan') : t('home.count.pasada');
     return `
       <div class="home-count">
         <span class="home-count-num">${n}</span>
-        <span class="home-count-lbl">${escapeHtml(lbl)}</span>
-        <span class="home-count-date">${escapeHtml(fecha)}</span>
+        <div class="home-count-side">
+          <span class="home-count-lbl">${escapeHtml(lbl)}</span>
+          <span class="home-count-date">${escapeHtml(fecha)}</span>
+        </div>
       </div>`;
   }
 
@@ -193,10 +195,8 @@ export class HomeView extends AppElement {
     return cards.map((c, i) => `
       <a class="home-card" href="#${c.id}" style="${c.color};animation-delay:${0.06 * (i + 1)}s" aria-label="${escapeHtml(c.title)}">
         <span class="home-card-wm" aria-hidden="true">${c.icon}</span>
-        <div class="home-card-top">
-          <span class="home-card-ic">${c.icon}</span>
-          <span class="home-card-go">${ICON.arrow}</span>
-        </div>
+        <span class="home-card-go">${ICON.arrow}</span>
+        <span class="home-card-ic">${c.icon}</span>
         <div class="home-card-body">
           <h3 class="home-card-title">${escapeHtml(c.title)}</h3>
           <p class="home-card-desc">${escapeHtml(c.desc)}</p>
