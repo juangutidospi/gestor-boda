@@ -36,10 +36,23 @@ const TABLES = {
   },
   mesas: {
     table: 'mesas',
-    fromRow: (r) => ({ id: r.id, nombre: r.nombre, capacidad: r.capacidad, forma: r.forma, x: r.x, y: r.y }),
+    fromRow: (r) => ({ id: r.id, nombre: r.nombre, capacidad: r.capacidad, forma: r.forma, x: r.x, y: r.y, rot: r.rot ?? 0 }),
     toRow: (e, wid) => ({
       id: e.id, wedding_id: wid, nombre: e.nombre, capacidad: e.capacidad ?? 8,
-      forma: e.forma ?? 'redonda', x: e.x ?? null, y: e.y ?? null,
+      forma: e.forma ?? 'redonda', x: e.x ?? null, y: e.y ?? null, rot: e.rot ?? 0,
+    }),
+  },
+  reglas: {
+    table: 'reglas',
+    fromRow: (r) => ({ id: r.id, tipo: r.tipo, a: r.a, b: r.b }),
+    toRow: (e, wid) => ({ id: e.id, wedding_id: wid, tipo: e.tipo ?? 'juntos', a: e.a ?? null, b: e.b ?? null }),
+  },
+  zonas: {
+    table: 'zonas',
+    fromRow: (r) => ({ id: r.id, tipo: r.tipo, x: r.x, y: r.y, w: r.w, h: r.h, rot: r.rot ?? 0 }),
+    toRow: (e, wid) => ({
+      id: e.id, wedding_id: wid, tipo: e.tipo, x: e.x ?? null, y: e.y ?? null,
+      w: e.w ?? null, h: e.h ?? null, rot: e.rot ?? 0,
     }),
   },
   invitados: {

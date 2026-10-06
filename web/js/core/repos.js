@@ -51,9 +51,9 @@ export const fincasRepo = collection('fincas');
 export const invitadosRepo = collection('invitados');
 export const proveedoresRepo = collection('proveedores');
 export const mesasRepo = collection('mesas');
-/** Reglas de convivencia del salón: `{ id, tipo:'juntos'|'separados', a, b }`. (local) */
+/** Reglas de convivencia del salón: `{ id, tipo:'juntos'|'separados', a, b }`. */
 export const reglasRepo = collection('reglas');
-/** Zonas del plano del salón: `{ id, tipo, x, y, w, h, rot }` (x,y en %; w,h en px). (local) */
+/** Zonas del plano del salón: `{ id, tipo, x, y, w, h, rot }` (x,y en %; w,h en px). */
 export const zonasRepo = collection('zonas');
 /** Momentos del guion del día (Timing): `{ id, orden, bloque, titulo, inicio, dur, lugar, prov, nota }`. */
 export const timingRepo = collection('timing');
