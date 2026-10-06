@@ -21,7 +21,7 @@ const TABLES = {
     table: 'fincas',
     fromRow: (r) => ({
       id: r.id, nombre: r.nombre, tipo: r.tipo, zona: r.zona, km: r.km,
-      capSent: r.cap_sent, capPie: r.cap_pie, menu: r.menu, alquiler: r.alquiler,
+      capSent: r.cap_sent, capPie: r.cap_pie, menu: r.menu, alquiler: r.alquiler, senal: r.senal ?? 0,
       valoracion: r.valoracion == null ? undefined : Number(r.valoracion), estado: r.estado,
       servicios: r.servicios || [], fechas: r.fechas || [], fotos: r.fotos || [],
       tour: r.tour || undefined, notas: r.notas || '', motivo: r.motivo || '',
@@ -29,7 +29,7 @@ const TABLES = {
     toRow: (e, wid) => ({
       id: e.id, wedding_id: wid, nombre: e.nombre, tipo: e.tipo ?? null, zona: e.zona ?? null,
       km: e.km ?? null, cap_sent: e.capSent ?? null, cap_pie: e.capPie ?? null, menu: e.menu ?? null,
-      alquiler: e.alquiler ?? 0, valoracion: e.valoracion ?? null, estado: e.estado ?? 'candidata',
+      alquiler: e.alquiler ?? 0, senal: e.senal ?? 0, valoracion: e.valoracion ?? null, estado: e.estado ?? 'candidata',
       servicios: e.servicios || [], fechas: e.fechas || [], fotos: e.fotos || [],
       tour: e.tour ?? null, notas: e.notas ?? null, motivo: e.motivo ?? null,
     }),
@@ -99,6 +99,11 @@ const TABLES = {
 
 let activeWeddingId = null;
 let userId = null;
+/** Copia en memoria de weddings.settings (claves de config sin columna propia). */
+let weddingSettings = {};
+/** Claves de config con columna dedicada (no van a settings). */
+const CONFIG_WEDDING = ['guestCount', 'defaultView', 'novios', 'weddingDate'];
+const CONFIG_PROFILE = ['theme', 'lang'];
 
 /** @returns {string|null} Id de la boda activa (tras hidratar). */
 export function getActiveWeddingId() { return activeWeddingId; }
@@ -135,6 +140,7 @@ export async function hydrate() {
   const { data: wed } = await sb.from('weddings').select('*').eq('id', activeWeddingId).maybeSingle();
   const { data: prof } = await sb.from('profiles').select('lang,theme').eq('id', userId).maybeSingle();
   if (wed) {
+    weddingSettings = wed.settings || {};
     storeSet('config', 'main', {
       guestCount: wed.guest_count ?? 0,
       defaultView: wed.default_view ?? 'rejilla',
@@ -142,6 +148,7 @@ export async function hydrate() {
       weddingDate: wed.wedding_date ?? '',
       theme: prof?.theme ?? 'light',
       lang: prof?.lang ?? 'es',
+      ...weddingSettings, // bodaFecha, horaDorada y demás claves sin columna
     });
     storeSet('presupuesto', 'main', { limite: wed.budget_limit ?? 0, partidas: [] });
     storeSet('salon', 'bg', { url: wed.salon_bg_url ?? '' });
@@ -186,6 +193,13 @@ function startMirror(sb) {
       if ('defaultView' in value) patch.default_view = value.defaultView;
       if ('novios' in value) patch.couple_names = value.novios;
       if ('weddingDate' in value) patch.wedding_date = value.weddingDate || null;
+      // claves de config sin columna propia → weddings.settings (JSONB)
+      const extras = Object.keys(value).filter((k) => !CONFIG_WEDDING.includes(k) && !CONFIG_PROFILE.includes(k));
+      if (extras.length) {
+        weddingSettings = { ...weddingSettings };
+        for (const k of extras) weddingSettings[k] = value[k];
+        patch.settings = weddingSettings;
+      }
       if (Object.keys(patch).length) sb.from('weddings').update(patch).eq('id', activeWeddingId).then(reportErr);
       // tema/idioma son del perfil
       const prof = {};

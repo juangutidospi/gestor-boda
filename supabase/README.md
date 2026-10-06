@@ -12,7 +12,8 @@ supabase/
 │  ├─ 0001_init.sql      Tablas, tipos (CHECK), índices, updated_at, catálogo
 │  ├─ 0002_rls.sql       Row Level Security (función is_wedding_member sin recursión)
 │  ├─ 0003_new_user.sql  Trigger: alta de profile al registrarse
-│  └─ 0004_salon.sql     Plano del salón: mesas.rot, tablas reglas y zonas (+RLS)
+│  ├─ 0004_salon.sql     Plano del salón: mesas.rot, tablas reglas y zonas (+RLS)
+│  └─ 0005_extras.sql    fincas.senal y weddings.settings (claves de config varias)
 ├─ seed/
 │  ├─ seed_demo.mjs      Crea usuarios demo + boda demo con TODOS los datos mock
 │  └─ package.json
@@ -49,6 +50,7 @@ En el panel de Supabase → **SQL Editor**, ejecuta en orden el contenido de:
 2. `migrations/0002_rls.sql`
 3. `migrations/0003_new_user.sql`
 4. `migrations/0004_salon.sql`
+5. `migrations/0005_extras.sql`
 
 (O con la CLI de Supabase: `supabase db push` si enlazas esta carpeta.)
 
