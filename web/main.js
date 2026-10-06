@@ -1,3 +1,4 @@
+import './js/components/views/home-view/home-view.js';
 import './js/components/views/finca-view/finca-view.js';
 import './js/components/views/invitados-view/invitados-view.js';
 import './js/components/views/proveedores-view/proveedores-view.js';
@@ -13,6 +14,7 @@ const svg = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 
 /** Las seis vistas del prototipo, con su id, su clave de rótulo y su icono. */
 const NAV = [
+  { id: 'view-home', key: 'nav.inicio', icon: svg('<rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>') },
   { id: 'view-invitados', key: 'nav.invitados', icon: svg('<circle cx="9" cy="8" r="3.1"/><path d="M3.2 20c0-3.2 2.6-5.8 5.8-5.8s5.8 2.6 5.8 5.8"/><path d="M16.2 4.1a3.1 3.1 0 0 1 0 6M18 14.4c2.1.5 3.8 2.4 3.8 4.9"/>') },
   { id: 'view-finca', key: 'nav.finca', icon: svg('<path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 10v9.5h13V10"/><path d="M9.8 19.5V14h4.4v5.5"/>') },
   { id: 'view-salon', key: 'nav.salon', icon: svg('<circle cx="7.2" cy="7.5" r="2.4"/><circle cx="16.8" cy="7.5" r="2.4"/><circle cx="12" cy="16.2" r="2.6"/>') },
@@ -24,7 +26,7 @@ const NAV = [
 /** Pinta los enlaces de navegación (icono + rótulo). */
 function paintNav() {
   const nav = document.getElementById('nav');
-  const active = document.querySelector('.view.active')?.id ?? 'view-finca';
+  const active = document.querySelector('.view.active')?.id ?? 'view-home';
   nav.innerHTML = NAV.map((n) => `
     <button type="button" data-nav="${n.id}"${n.id === active ? ' aria-current="page"' : ''}><span class="nav-ic">${n.icon}</span><span class="nav-lb">${escapeHtml(t(n.key))}</span></button>`).join('');
   nav.querySelectorAll('[data-nav]').forEach((b) => {
@@ -43,7 +45,7 @@ function paintChrome() {
  * @param {string} id
  */
 function setActiveView(id) {
-  const known = NAV.some((n) => n.id === id) ? id : 'view-finca';
+  const known = NAV.some((n) => n.id === id) ? id : 'view-home';
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === known));
   document.querySelectorAll('[data-nav]').forEach((b) => {
     if (b.dataset.nav === known) b.setAttribute('aria-current', 'page');
@@ -112,5 +114,5 @@ document.documentElement.lang = getLang();
 
 paintChrome();
 paintNav();
-setActiveView(location.hash.slice(1) || 'view-finca');
-window.addEventListener('hashchange', () => setActiveView(location.hash.slice(1) || 'view-finca'));
+setActiveView(location.hash.slice(1) || 'view-home');
+window.addEventListener('hashchange', () => setActiveView(location.hash.slice(1) || 'view-home'));
